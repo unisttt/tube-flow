@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Build outputs / caches
+.dist/
+*.log
+pnpm-debug.log*
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# OS files
+.DS_Store
