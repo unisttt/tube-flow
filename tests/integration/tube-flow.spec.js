@@ -2,17 +2,23 @@ const { readFile } = require('fs/promises');
 const path = require('path');
 const { test, expect } = require('./fixtures');
 
-const FIXTURE_HTML = path.join(__dirname, '..', 'fixtures', 'static', 'youtube-home.html');
+const HOME_FIXTURE_HTML = path.join(__dirname, '..', 'fixtures', 'static', 'youtube-home.html');
+const WATCH_FIXTURE_HTML = path.join(__dirname, '..', 'fixtures', 'static', 'youtube-watch.html');
 
 async function stubYouTube(page) {
-  const html = await readFile(FIXTURE_HTML, 'utf-8');
+  const [homeHtml, watchHtml] = await Promise.all([
+    readFile(HOME_FIXTURE_HTML, 'utf-8'),
+    readFile(WATCH_FIXTURE_HTML, 'utf-8')
+  ]);
   await page.route('**://www.youtube.com/**', (route) => {
     const request = route.request();
     const type = request.resourceType();
     if (type === 'document') {
+      const url = request.url();
+      const body = /\/watch/.test(url) ? watchHtml : homeHtml;
       route.fulfill({
         status: 200,
-        body: html,
+        body,
         contentType: 'text/html; charset=utf-8'
       });
       return;
@@ -102,6 +108,7 @@ test.describe('Tube Flow integration', () => {
     await optionsPage.waitForSelector('#options-form');
 
     await optionsPage.fill('#visibleCount', '2');
+    await optionsPage.fill('#watchVisibleCount', '2');
     await optionsPage.fill('#skipCloseThreshold', '5');
     const hideShortsCheckbox = optionsPage.locator('#hideShorts');
     if (await hideShortsCheckbox.isChecked()) {
@@ -124,6 +131,7 @@ test.describe('Tube Flow integration', () => {
     expect(postState.summary).toMatch(/表示カード数\s*2/);
     expect(postState.summary).toMatch(/Shorts 非表示\s*無効/);
     expect(postState.summary).toMatch(/連続スキップ回数\s*5/);
+    expect(postState.summary).toMatch(/おすすめ表示数\s*2/);
 
     await optionsPage.click('#restore-defaults');
 
@@ -139,5 +147,57 @@ test.describe('Tube Flow integration', () => {
     expect(restoredSummary).toMatch(/表示カード数\s*1/);
     expect(restoredSummary).toMatch(/Shorts 非表示\s*有効/);
     expect(restoredSummary).toMatch(/連続スキップ回数\s*3/);
+    expect(restoredSummary).toMatch(/おすすめ表示数\s*0/);
+  });
+
+  test('limits watch recommendations according to settings', async ({ context, extensionId }) => {
+    const page = await context.newPage();
+    await stubYouTube(page);
+    await page.goto('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    await page.waitForSelector('#related ytd-watch-next-secondary-results-renderer #items > yt-lockup-view-model', { state: 'attached' });
+
+    await page.waitForFunction(() => {
+      const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
+      return items.length >= 4 && items.every((item) => item.classList.contains('hd-hidden'));
+    });
+
+    const initialState = await page.evaluate(() => {
+      const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
+      const visible = items.filter((item) => !item.classList.contains('hd-hidden')).length;
+      const hasRootClass = document.documentElement.classList.contains('hd-watch-target');
+      return { total: items.length, visible, hasRootClass };
+    });
+
+    expect(initialState.total).toBeGreaterThanOrEqual(4);
+    expect(initialState.visible).toBe(0);
+    expect(initialState.hasRootClass).toBe(true);
+
+    const optionsPage = await context.newPage();
+    await optionsPage.goto(`chrome-extension://${extensionId}/options/index.html`);
+    await optionsPage.waitForSelector('#watchVisibleCount');
+    await optionsPage.fill('#watchVisibleCount', '3');
+    await optionsPage.click('button[type="submit"]');
+
+    await page.waitForFunction(() => {
+      const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
+      const visibleIds = items.filter((item) => !item.classList.contains('hd-hidden')).map((item) => item.id);
+      return items.length >= 4 && visibleIds.length === 3 && visibleIds.includes('auto-item');
+    });
+
+    const updatedState = await page.evaluate(() => {
+      const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
+      return items.filter((item) => !item.classList.contains('hd-hidden')).map((item) => item.id);
+    });
+
+    expect(updatedState).toEqual(expect.arrayContaining(['auto-item', 'item-1', 'item-2']));
+    expect(updatedState.length).toBe(3);
+
+    await optionsPage.click('#restore-defaults');
+
+    await page.waitForFunction(() => {
+      const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
+      return items.length >= 4 && items.every((item) => item.classList.contains('hd-hidden'));
+    });
   });
 });

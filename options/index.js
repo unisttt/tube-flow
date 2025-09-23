@@ -1,7 +1,8 @@
 const DEFAULTS = {
   visibleCount: 1,
   hideShorts: true,
-  skipCloseThreshold: 3
+  skipCloseThreshold: 3,
+  watchVisibleCount: 0
 };
 
 const form = document.getElementById('options-form');
@@ -19,6 +20,7 @@ function clampNumber(value, min, max, fallback) {
 function renderSummary(settings) {
   const entries = [
     ['表示カード数', settings.visibleCount],
+    ['おすすめ表示数', settings.watchVisibleCount],
     ['Shorts 非表示', settings.hideShorts ? '有効' : '無効'],
     ['連続スキップ回数', settings.skipCloseThreshold]
   ];
@@ -31,6 +33,7 @@ function loadSettings() {
   chrome.storage.sync.get(DEFAULTS, (items) => {
     const settings = { ...DEFAULTS, ...(items || {}) };
     form.visibleCount.value = Number(settings.visibleCount) || 0;
+    form.watchVisibleCount.value = Number(settings.watchVisibleCount) || 0;
     form.hideShorts.checked = Boolean(settings.hideShorts);
     form.skipCloseThreshold.value = Number(settings.skipCloseThreshold) || 0;
     renderSummary(settings);
@@ -80,6 +83,7 @@ function saveSettings(event) {
   event.preventDefault();
   const settings = {
     visibleCount: clampNumber(form.visibleCount.value, 0, 6, DEFAULTS.visibleCount),
+    watchVisibleCount: clampNumber(form.watchVisibleCount.value, 0, 20, DEFAULTS.watchVisibleCount),
     hideShorts: Boolean(form.hideShorts.checked),
     skipCloseThreshold: clampNumber(form.skipCloseThreshold.value, 0, 10, DEFAULTS.skipCloseThreshold)
   };

@@ -3,7 +3,8 @@
   const DEFAULT_SETTINGS = {
     visibleCount: 1,
     hideShorts: true,
-    skipCloseThreshold: 3
+    skipCloseThreshold: 3,
+    watchVisibleCount: 0
   };
 
   window.TubeFlow = window.TubeFlow || {};
@@ -59,6 +60,7 @@
     root.classList.toggle('hd-home-target', Boolean(active));
     log('setHomeActive', { active });
   }
+
 
   function setReadyState(ready) {
     const root = document.documentElement;

@@ -5,6 +5,7 @@
   }
 
   const isYouTubeHome = () => /(^|\.)youtube\.com$/.test(location.hostname) && location.pathname === '/';
+  const isYouTubeWatch = () => /(^|\.)youtube\.com$/.test(location.hostname) && location.pathname.startsWith('/watch');
 
   function ensureStyle() {
     if (document.getElementById('tube-flow-prehide')) {
@@ -32,20 +33,40 @@
       html.hd-home-target:not(.hd-ready) .hd-controls {
         display: none !important;
       }
+      html.hd-watch-target ytd-watch-next-secondary-results-renderer #items > *,
+      html.hd-watch-target #related ytd-watch-next-secondary-results-renderer #items > *,
+      html.hd-watch-target #secondary ytd-watch-next-secondary-results-renderer #items > * {
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+      html.hd-watch-target ytd-watch-next-secondary-results-renderer #items > *.hd-hidden,
+      html.hd-watch-target #related ytd-watch-next-secondary-results-renderer #items > *.hd-hidden,
+      html.hd-watch-target #secondary ytd-watch-next-secondary-results-renderer #items > *.hd-hidden {
+        display: none !important;
+      }
+      html.hd-watch-target.hd-watch-ready ytd-watch-next-secondary-results-renderer #items > *.hd-visible,
+      html.hd-watch-target.hd-watch-ready #related ytd-watch-next-secondary-results-renderer #items > *.hd-visible,
+      html.hd-watch-target.hd-watch-ready #secondary ytd-watch-next-secondary-results-renderer #items > *.hd-visible {
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
     `;
     (document.head || document.documentElement).appendChild(style);
   }
 
   function updateClasses() {
-    if (isYouTubeHome()) {
-      html.classList.add('hd-home-target');
-    } else {
-      html.classList.remove('hd-home-target');
-    }
+    const home = isYouTubeHome();
+    const watch = isYouTubeWatch();
+    html.classList.toggle('hd-home-target', home);
+    html.classList.toggle('hd-watch-target', watch);
     html.classList.remove('hd-ready');
+    if (!watch) {
+      html.classList.remove('hd-watch-ready');
+    }
     if (typeof console !== 'undefined' && console.debug) {
       console.debug('[TubeFlow][prelude] updateClasses', {
-        isHome: isYouTubeHome(),
+        isHome: home,
+        isWatch: watch,
         pathname: location.pathname
       });
     }

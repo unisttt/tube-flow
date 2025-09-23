@@ -102,7 +102,7 @@
   </head>
   <body>
     <h1>Tube Flow 設定</h1>
-    <p class="description">YouTube ホームでの表示件数や Shorts 抑制、連続スキップ閾値を変更できます。</p>
+    <p class="description">YouTube ホームでの表示件数や Shorts 抑制、動画再生ページのおすすめ表示数、連続スキップ閾値を変更できます。</p>
 
     <form id="options-form">
       <fieldset>
@@ -113,6 +113,13 @@
             <input type="number" id="visibleCount" name="visibleCount" min="0" max="6" />
           </label>
           <small>常時表示する動画カードの枚数。（0 で全カード非表示）</small>
+        </div>
+        <div class="field">
+          <label for="watchVisibleCount">
+            おすすめ表示数
+            <input type="number" id="watchVisibleCount" name="watchVisibleCount" min="0" max="20" />
+          </label>
+          <small>動画再生ページのおすすめ欄に表示する最大件数。（0 でおすすめをすべて隠す）</small>
         </div>
         <div class="field">
           <label for="hideShorts">
