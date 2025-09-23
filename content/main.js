@@ -70,6 +70,14 @@
     emitStateUpdate('ready-change');
   }
 
+  function syncRootFlags() {
+    const root = document.documentElement;
+    if (!root) {
+      return;
+    }
+    root.classList.toggle('hd-hide-shorts', Boolean(state.settings.hideShorts));
+  }
+
   function isHomePage() {
     return /(^|\.)youtube\.com$/.test(location.hostname) && location.pathname === '/';
   }
@@ -85,6 +93,8 @@
             return;
           }
           state.settings = { ...DEFAULT_SETTINGS, ...(items || {}) };
+          log('settings loaded', state.settings);
+          syncRootFlags();
           resolve(state.settings);
         });
       } catch (error) {
@@ -318,7 +328,9 @@
       }
     });
     if (updated) {
+      syncRootFlags();
       scheduleApply('settings-change');
+      log('settings updated', state.settings);
       emitStateUpdate('settings-change');
     }
   }
@@ -347,11 +359,23 @@
       }
       return;
     }
+    if (message.type === 'options-updated') {
+      loadSettings().then(() => {
+        syncRootFlags();
+        scheduleApply('options-update');
+        emitStateUpdate('options-update');
+      });
+      if (typeof sendResponse === 'function') {
+        sendResponse({ ok: true });
+      }
+      return true;
+    }
   }
 
   async function init() {
     await loadSettings();
     setHomeActive(isHomePage());
+    syncRootFlags();
     setReadyState(false);
     ensureRoot();
     scheduleApply('init');

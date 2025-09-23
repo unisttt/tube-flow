@@ -68,4 +68,76 @@ test.describe('Tube Flow integration', () => {
     });
     expect(clickedWatchLater).toBe(true);
   });
+
+  test('applies settings changes from options page', async ({ context, extensionId }) => {
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      window.__tubeFlowReady = false;
+      if (window.TubeFlow?.core?.getState) {
+        window.__tubeFlowReady = true;
+      } else {
+        window.addEventListener('tube-flow:core-ready', () => {
+          window.__tubeFlowReady = true;
+        }, { once: true });
+      }
+    });
+    await stubYouTube(page);
+    await page.goto('https://www.youtube.com/');
+
+    await page.waitForSelector('ytd-rich-item-renderer');
+    await page.waitForFunction(() => window.__tubeFlowReady === true);
+
+    const initialSnapshot = await page.evaluate(() => ({
+      visibleCount: Array.from(document.querySelectorAll('ytd-rich-item-renderer')).filter((tile) => !tile.classList.contains('hd-hidden')).length,
+      rootClasses: Array.from(document.documentElement.classList),
+      skipLabel: document.querySelector('[data-role="skip-remaining"]')?.textContent || ''
+    }));
+
+    expect(initialSnapshot.visibleCount).toBe(1);
+    expect(initialSnapshot.rootClasses).toContain('hd-hide-shorts');
+    expect(initialSnapshot.skipLabel).toContain('残り');
+
+    const optionsPage = await context.newPage();
+    await optionsPage.goto(`chrome-extension://${extensionId}/options/index.html`);
+    await optionsPage.waitForSelector('#options-form');
+
+    await optionsPage.fill('#visibleCount', '2');
+    await optionsPage.fill('#skipCloseThreshold', '5');
+    const hideShortsCheckbox = optionsPage.locator('#hideShorts');
+    if (await hideShortsCheckbox.isChecked()) {
+      await hideShortsCheckbox.click();
+    }
+    await optionsPage.click('button[type="submit"]');
+
+    await page.waitForFunction(() => {
+      const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
+      const visibleCount = tiles.filter((tile) => !tile.classList.contains('hd-hidden')).length;
+      const hideShortsOff = !document.documentElement.classList.contains('hd-hide-shorts');
+      const skipLabel = document.querySelector('[data-role="skip-remaining"]')?.textContent || '';
+      return visibleCount === 2 && hideShortsOff && /残り5/.test(skipLabel);
+    });
+
+    const postState = await optionsPage.evaluate(() => ({
+      summary: document.getElementById('summary')?.innerText || ''
+    }));
+
+    expect(postState.summary).toMatch(/表示カード数\s*2/);
+    expect(postState.summary).toMatch(/Shorts 非表示\s*無効/);
+    expect(postState.summary).toMatch(/連続スキップ回数\s*5/);
+
+    await optionsPage.click('#restore-defaults');
+
+    await page.waitForFunction(() => {
+      const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
+      const visibleCount = tiles.filter((tile) => !tile.classList.contains('hd-hidden')).length;
+      const hideShortsOn = document.documentElement.classList.contains('hd-hide-shorts');
+      const skipLabel = document.querySelector('[data-role="skip-remaining"]')?.textContent || '';
+      return visibleCount === 1 && hideShortsOn && /残り3/.test(skipLabel);
+    });
+
+    const restoredSummary = await optionsPage.evaluate(() => document.getElementById('summary')?.innerText || '');
+    expect(restoredSummary).toMatch(/表示カード数\s*1/);
+    expect(restoredSummary).toMatch(/Shorts 非表示\s*有効/);
+    expect(restoredSummary).toMatch(/連続スキップ回数\s*3/);
+  });
 });

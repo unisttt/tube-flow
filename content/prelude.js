@@ -24,9 +24,9 @@
       html.hd-home-target ytd-rich-grid-renderer #contents ytd-rich-item-renderer.hd-hidden {
         display: none !important;
       }
-      html.hd-home-target ytd-reel-shelf-renderer,
-      html.hd-home-target ytd-rich-shelf-renderer[is-shorts],
-      html.hd-home-target ytd-rich-shelf-renderer[modernized-shelf-title*="Shorts"] {
+      html.hd-home-target.hd-hide-shorts ytd-reel-shelf-renderer,
+      html.hd-home-target.hd-hide-shorts ytd-rich-shelf-renderer[is-shorts],
+      html.hd-home-target.hd-hide-shorts ytd-rich-shelf-renderer[modernized-shelf-title*="Shorts"] {
         visibility: hidden !important;
       }
       html.hd-home-target:not(.hd-ready) .hd-controls {
@@ -51,7 +51,26 @@
     }
   }
 
+  function applyHideShortsFlag(flag) {
+    if (flag) {
+      html.classList.add('hd-hide-shorts');
+    } else {
+      html.classList.remove('hd-hide-shorts');
+    }
+  }
+
+  function loadInitialSettings() {
+    if (!chrome || !chrome.storage || !chrome.storage.sync) {
+      applyHideShortsFlag(true);
+      return;
+    }
+    chrome.storage.sync.get({ hideShorts: true }, (items) => {
+      applyHideShortsFlag(items?.hideShorts !== false);
+    });
+  }
+
   ensureStyle();
   updateClasses();
+  loadInitialSettings();
   document.addEventListener('yt-navigate-start', updateClasses);
 })();

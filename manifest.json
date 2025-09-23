@@ -2,28 +2,41 @@
   "manifest_version": 3,
   "name": "Tube Flow",
   "description": "YouTube ホームで表示カードを制限し、集中をサポートするツール",
-  "version": "0.1.0",
-  "permissions": ["storage", "tabs"],
-  "host_permissions": ["*://www.youtube.com/*"],
+  "version": "0.1.1",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://www.youtube.com/*"
+  ],
   "background": {
     "service_worker": "background/service.js",
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["*://www.youtube.com/*"],
-      "js": ["content/prelude.js"],
+      "matches": [
+        "*://www.youtube.com/*"
+      ],
+      "js": [
+        "content/prelude.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["*://www.youtube.com/*"],
+      "matches": [
+        "*://www.youtube.com/*"
+      ],
       "js": [
         "content/core-utils.js",
         "content/adapters/home.js",
         "content/ui/controls.js",
         "content/main.js"
       ],
-      "css": ["content/style.css"],
+      "css": [
+        "content/style.css"
+      ],
       "run_at": "document_idle"
     }
   ],

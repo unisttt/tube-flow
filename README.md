@@ -41,23 +41,22 @@ manifest.json            // 拡張設定
 
 右下ミニ UI でも同じ 2 操作が利用できます。連続スキップ残数は `skipCloseThreshold` を超えると 0 になり、バックグラウンドへ `request-exit` が送信されます。
 
-## 設定 (`chrome.storage.sync`)
-```json
-{
-  "visibleCount": 1,
-  "hideShorts": true,
-  "skipCloseThreshold": 3
-}
-```
-- `visibleCount`: 常時表示するカード枚数（0 で全非表示）。
-- `hideShorts`: Shorts 系棚のマスクを有効にするか。
-- `skipCloseThreshold`: Alt+J を続けて押した際の閾値（0 で無効）。閾値超過時の最終動作は service worker でハンドリングします。
+## 設定（Options UI）
+Chrome の拡張管理画面から 「詳細」→「拡張機能オプション」 を開くか、`chrome-extension://<拡張ID>/options/index.html` にアクセスすると次の項目を GUI で変更できます。
+
+| 項目 | 説明 | 既定値 |
+|------|------|--------|
+| 表示カード数 (`visibleCount`) | 常時表示する動画カードの枚数。0 で全カード非表示。 | 1 |
+| Shorts 非表示 (`hideShorts`) | Shorts / リール棚をマスクするか。 | 有効 |
+| 連続スキップ回数 (`skipCloseThreshold`) | Alt+J の連打を許容する回数。0 で監視無効。 | 3 |
+
+保存すると直ちにすべての YouTube タブへ反映され、既定に戻すボタンで初期値にリセットできます。内部的には `chrome.storage.sync` に保存されるため、再読み込み／新規タブでも設定は維持されます。
 
 ## 開発・テスト
 - 依存インストール: `pnpm install`
 - ユニットテスト（Vitest + jsdom）: `pnpm test:unit`
 - 統合テスト（Playwright / Chromium 拡張）: `pnpm exec playwright install chromium` → `pnpm test:int`
-  - Playwright テストは `tests/integration/tube-flow.spec.js` が YouTube をフィクスチャ HTML でスタブし、`hd-hidden` 制御と UI 操作を検証します。
+  - 既存ケースに加え、オプション UI で設定を変更 → YouTube タブへ即座に反映されることを確認するシナリオを含んでいます。
 
 ## ログ/デバッグ
 - `console.debug` で `[TubeFlow][prelude]`, `[TubeFlow] setReadyState`, `[TubeFlow] applied` などが出力されます。DevTools Console のレベルを “Verbose” にすると一覧できます。

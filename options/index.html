@@ -4,25 +4,145 @@
     <meta charset="utf-8" />
     <title>Tube Flow 設定</title>
     <style>
+      :root {
+        color-scheme: light;
+      }
       body {
         font-family: system-ui, sans-serif;
         margin: 24px;
         color: #111;
         background: #fff;
+        max-width: 560px;
       }
-      label {
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+      }
+      p.description {
+        margin-bottom: 1.5rem;
+        color: #555;
+      }
+      form {
+        display: grid;
+        gap: 16px;
+      }
+      fieldset {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 16px;
+      }
+      fieldset legend {
+        padding: 0 8px;
+        font-weight: 600;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+      .field:last-child {
+        margin-bottom: 0;
+      }
+      .field label {
+        font-weight: 600;
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 12px;
+      }
+      .field small {
+        color: #666;
       }
       input[type="number"] {
-        width: 64px;
+        width: 96px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+      }
+      input[type="checkbox"] {
+        transform: scale(1.1);
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+      }
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        background: #2563eb;
+        color: #fff;
+      }
+      button.secondary {
+        background: #f3f4f6;
+        color: #111;
+      }
+      #status {
+        margin-top: 12px;
+        font-size: 0.95rem;
+        color: #2563eb;
+        min-height: 1.2em;
+      }
+      dl.summary {
+        margin: 24px 0 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px 16px;
+        font-size: 0.9rem;
+        color: #555;
+      }
+      dl.summary dt {
+        font-weight: 600;
       }
     </style>
   </head>
   <body>
-    <h1>Tube Flow 設定（プレビュー）</h1>
-    <p>現時点では設定 UI は未実装です。今後のバージョンで追加します。</p>
+    <h1>Tube Flow 設定</h1>
+    <p class="description">YouTube ホームでの表示件数や Shorts 抑制、連続スキップ閾値を変更できます。</p>
+
+    <form id="options-form">
+      <fieldset>
+        <legend>表示制御</legend>
+        <div class="field">
+          <label for="visibleCount">
+            表示カード数
+            <input type="number" id="visibleCount" name="visibleCount" min="0" max="6" />
+          </label>
+          <small>常時表示する動画カードの枚数。（0 で全カード非表示）</small>
+        </div>
+        <div class="field">
+          <label for="hideShorts">
+            <input type="checkbox" id="hideShorts" name="hideShorts" />
+            Shorts を非表示にする
+          </label>
+          <small>ホームに表示される Shorts やリール棚を隠します。</small>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>スキップ閾値</legend>
+        <div class="field">
+          <label for="skipCloseThreshold">
+            連続スキップ回数
+            <input type="number" id="skipCloseThreshold" name="skipCloseThreshold" min="0" max="10" />
+          </label>
+          <small>「次へ」(Alt+J) を連続で押せる回数。0 で監視無効。</small>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit">保存する</button>
+        <button type="button" class="secondary" id="restore-defaults">既定に戻す</button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+
+    <dl class="summary" id="summary"></dl>
+
+    <script src="index.js" type="module"></script>
   </body>
 </html>
