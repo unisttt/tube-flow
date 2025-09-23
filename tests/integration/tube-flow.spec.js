@@ -166,12 +166,18 @@ test.describe('Tube Flow integration', () => {
       const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
       const visible = items.filter((item) => !item.classList.contains('hd-hidden')).length;
       const hasRootClass = document.documentElement.classList.contains('hd-watch-target');
-      return { total: items.length, visible, hasRootClass };
+      const endscreenDisplay = (() => {
+        const el = document.getElementById('endscreen-mock');
+        if (!el) return null;
+        return window.getComputedStyle(el).display;
+      })();
+      return { total: items.length, visible, hasRootClass, endscreenDisplay };
     });
 
     expect(initialState.total).toBeGreaterThanOrEqual(4);
     expect(initialState.visible).toBe(0);
     expect(initialState.hasRootClass).toBe(true);
+    expect(initialState.endscreenDisplay).toBe('none');
 
     const optionsPage = await context.newPage();
     await optionsPage.goto(`chrome-extension://${extensionId}/options/index.html`);
@@ -187,17 +193,26 @@ test.describe('Tube Flow integration', () => {
 
     const updatedState = await page.evaluate(() => {
       const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
-      return items.filter((item) => !item.classList.contains('hd-hidden')).map((item) => item.id);
+      const visibleIds = items.filter((item) => !item.classList.contains('hd-hidden')).map((item) => item.id);
+      const endscreenDisplay = (() => {
+        const el = document.getElementById('endscreen-mock');
+        if (!el) return null;
+        return window.getComputedStyle(el).display;
+      })();
+      return { visibleIds, endscreenDisplay };
     });
 
-    expect(updatedState).toEqual(expect.arrayContaining(['auto-item', 'item-1', 'item-2']));
-    expect(updatedState.length).toBe(3);
+    expect(updatedState.visibleIds).toEqual(expect.arrayContaining(['auto-item', 'item-1', 'item-2']));
+    expect(updatedState.visibleIds.length).toBe(3);
+    expect(updatedState.endscreenDisplay).toBe('none');
 
     await optionsPage.click('#restore-defaults');
 
     await page.waitForFunction(() => {
       const items = Array.from(document.querySelectorAll('#related ytd-watch-next-secondary-results-renderer #items > *'));
-      return items.length >= 4 && items.every((item) => item.classList.contains('hd-hidden'));
+      const endscreen = document.getElementById('endscreen-mock');
+      const endscreenHidden = endscreen ? window.getComputedStyle(endscreen).display === 'none' : true;
+      return items.length >= 4 && items.every((item) => item.classList.contains('hd-hidden')) && endscreenHidden;
     });
   });
 });

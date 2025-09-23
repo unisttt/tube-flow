@@ -50,6 +50,18 @@
         visibility: visible !important;
         opacity: 1 !important;
       }
+      html.hd-watch-target .ytp-endscreen-content,
+      html.hd-watch-target .ytp-ce-element,
+      html.hd-watch-target .ytp-ce-video,
+      html.hd-watch-target .ytp-ce-covering,
+      html.hd-watch-target .ytp-ce-expanding-overlay,
+      html.hd-watch-target .ytp-upnext,
+      html.hd-watch-target .ytp-autonav-endscreen-upnext-button,
+      html.hd-watch-target .ytp-cards-button {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
     `;
     (document.head || document.documentElement).appendChild(style);
   }
