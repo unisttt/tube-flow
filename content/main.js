@@ -292,7 +292,132 @@
       fallback.click();
       return true;
     }
+    const overlay = tile.querySelector('ytd-thumbnail-overlay-toggle-button-renderer');
+    if (overlay) {
+      const overlayButton = overlay.querySelector('button, #button');
+      if (overlayButton) {
+        overlayButton.click();
+        return true;
+      }
+      overlay.click();
+      return true;
+    }
+    const host = tile.querySelector('yt-button-shape[aria-label*="Watch later" i], yt-button-shape[aria-label*="後で見る" i]');
+    if (host) {
+      const hostButton = host.querySelector('button, #button');
+      if (hostButton) {
+        hostButton.click();
+        return true;
+      }
+      host.click();
+      return true;
+    }
+    const iconButton = tile.querySelector('tp-yt-paper-icon-button[aria-label*="Watch later" i], tp-yt-paper-icon-button[aria-label*="後で見る" i]');
+    if (iconButton) {
+      iconButton.click();
+      return true;
+    }
+    if (triggerWatchLaterViaMenu(tile)) {
+      return true;
+    }
     return false;
+  }
+
+  function triggerWatchLaterViaMenu(tile) {
+    log('fallback: attempting menu route');
+    const watchLaterMatch = (node) => {
+      if (!node) {
+        return false;
+      }
+      const aria = (node.getAttribute('aria-label') || '').toLowerCase();
+      const text = (node.textContent || '').trim().toLowerCase();
+      if (aria.includes('watch later') || aria.includes('後で見る') || text.includes('watch later') || text.includes('後で見る')) {
+        return true;
+      }
+      if (node.classList.contains('yt-list-item-view-model__container')) {
+        const label = node.querySelector('.yt-core-attributed-string');
+        if (label) {
+          const labelText = (label.textContent || '').toLowerCase();
+          return labelText.includes('watch later') || labelText.includes('後で見る');
+        }
+      }
+      return false;
+    };
+
+    const clickNode = (node) => {
+      if (!node) {
+        return false;
+      }
+      if (node.classList?.contains('yt-list-item-view-model__container')) {
+        node.click();
+        return true;
+      }
+      const target = node.querySelector('a, button, tp-yt-paper-item, yt-formatted-string, .yt-core-attributed-string') || node;
+      target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      target.click();
+      return true;
+    };
+
+    const findMenuItem = () => {
+      const selectors = [
+        ' .yt-list-item-view-model__container',
+        'ytd-menu-service-item-renderer',
+        'tp-yt-paper-item[role="menuitem"]',
+        'yt-formatted-string[role="menuitem"]'
+      ];
+      for (const selector of selectors) {
+        const nodes = Array.from(document.querySelectorAll(selector.trim()));
+        const match = nodes.find(watchLaterMatch);
+        if (match && clickNode(match)) {
+          log('fallback: menu entry clicked', { selector });
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (findMenuItem()) {
+      return true;
+    }
+
+    const menuButtonSelectors = [
+      '#menu button',
+      '#menu yt-icon-button button',
+      'button[aria-label*="操作メニュー" i]',
+      'button[aria-label*="その他の操作" i]',
+      'button[aria-label*="More actions" i]',
+      'button[aria-label*="Action menu" i]'
+    ];
+
+    const menuButton = menuButtonSelectors
+      .map((selector) => tile.querySelector(selector))
+      .find((node) => node instanceof HTMLElement);
+
+    if (!menuButton) {
+      log('fallback: menu button not found');
+      return false;
+    }
+
+    menuButton.click();
+    log('fallback: menu button clicked');
+
+    let attempts = 0;
+    const maxAttempts = 25;
+    const interval = setInterval(() => {
+      if (findMenuItem()) {
+        clearInterval(interval);
+        log('fallback: menu item located via polling');
+        return;
+      }
+      attempts += 1;
+      if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        log('fallback: menu polling exceeded attempts');
+      }
+    }, 80);
+
+    return true;
   }
 
   function maybeRequestExit() {

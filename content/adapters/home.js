@@ -14,7 +14,14 @@ window.TubeFlow.adapters.home = {
       'ytd-toggle-button-renderer[is-icon-button][aria-label*="後で見る"] button',
       'ytd-button-renderer[button-renderer][aria-label*="後で見る"] button',
       'ytd-toggle-button-renderer[is-icon-button][aria-label*="Watch later"] button',
-      'ytd-button-renderer[button-renderer][aria-label*="Watch later"] button'
+      'ytd-button-renderer[button-renderer][aria-label*="Watch later"] button',
+      'ytd-thumbnail-overlay-toggle-button-renderer[aria-label*="Watch later" i] button',
+      'ytd-thumbnail-overlay-toggle-button-renderer[aria-label*="後で見る" i] button',
+      'yt-button-shape[aria-label*="Watch later" i] #button',
+      'yt-button-shape[aria-label*="後で見る" i] #button',
+      'yt-button-shape[aria-label*="watch later" i] button',
+      'tp-yt-paper-icon-button[aria-label*="Watch later" i]',
+      'tp-yt-paper-icon-button[aria-label*="後で見る" i]'
     ]
   }
 };
