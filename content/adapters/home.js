@@ -22,6 +22,14 @@ window.TubeFlow.adapters.home = {
       'yt-button-shape[aria-label*="watch later" i] button',
       'tp-yt-paper-icon-button[aria-label*="Watch later" i]',
       'tp-yt-paper-icon-button[aria-label*="後で見る" i]'
+    ],
+    notInterestedButtons: [
+      'yt-button-shape[aria-label*="興味なし" i] #button',
+      'yt-button-shape[aria-label*="Not interested" i] #button',
+      'tp-yt-paper-icon-button[aria-label*="興味なし" i]',
+      'tp-yt-paper-icon-button[aria-label*="Not interested" i]',
+      'button[aria-label*="興味なし" i]',
+      'button[aria-label*="Not interested" i]'
     ]
   }
 };

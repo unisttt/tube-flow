@@ -30,6 +30,12 @@
         button.setAttribute('data-error', 'true');
         setTimeout(() => button.removeAttribute('data-error'), 1500);
       }
+    } else if (action === 'not-interested') {
+      const ok = core.markCurrentAsNotInterested?.();
+      if (!ok) {
+        button.setAttribute('data-error', 'true');
+        setTimeout(() => button.removeAttribute('data-error'), 1500);
+      }
     }
   }
 
@@ -54,6 +60,7 @@
         <span class="hd-meta" data-role="skip-remaining" aria-hidden="true"></span>
       </button>
       <button type="button" data-action="watch-later" aria-label="後で見るに追加" title="後で見るに追加 (Alt+L)">後で見る</button>
+      <button type="button" data-action="not-interested" aria-label="興味なしにする" title="興味なしにする">興味なし</button>
     `;
     container.addEventListener('click', handleButtonClick);
     skipRemainingNode = container.querySelector('[data-role="skip-remaining"]');

@@ -317,32 +317,60 @@
       iconButton.click();
       return true;
     }
-    if (triggerWatchLaterViaMenu(tile)) {
+    if (triggerMenuAction(tile, matchWatchLaterMenuEntry, 'watch-later')) {
       return true;
     }
     return false;
   }
 
-  function triggerWatchLaterViaMenu(tile) {
-    log('fallback: attempting menu route');
-    const watchLaterMatch = (node) => {
-      if (!node) {
-        return false;
-      }
-      const aria = (node.getAttribute('aria-label') || '').toLowerCase();
-      const text = (node.textContent || '').trim().toLowerCase();
-      if (aria.includes('watch later') || aria.includes('後で見る') || text.includes('watch later') || text.includes('後で見る')) {
+  function markCurrentAsNotInterested() {
+    const tile = getCurrentTile();
+    if (!tile) {
+      return false;
+    }
+    const selectors = (homeAdapter.selectors && homeAdapter.selectors.notInterestedButtons) || [];
+    for (const selector of selectors) {
+      const button = tile.querySelector(selector);
+      if (button) {
+        button.click();
         return true;
       }
-      if (node.classList.contains('yt-list-item-view-model__container')) {
-        const label = node.querySelector('.yt-core-attributed-string');
-        if (label) {
-          const labelText = (label.textContent || '').toLowerCase();
-          return labelText.includes('watch later') || labelText.includes('後で見る');
-        }
-      }
+    }
+    return triggerMenuAction(tile, matchNotInterestedMenuEntry, 'not-interested');
+  }
+
+  const WATCH_LATER_PATTERNS = [/watch later/i, /後で見る/];
+  const NOT_INTERESTED_PATTERNS = [/not interested/i, /興味なし/];
+
+  function matchMenuEntry(node, patterns) {
+    if (!node) {
       return false;
-    };
+    }
+    const aria = (node.getAttribute('aria-label') || '').toLowerCase();
+    const text = (node.textContent || '').trim().toLowerCase();
+    if (patterns.some((pattern) => pattern.test(aria) || pattern.test(text))) {
+      return true;
+    }
+    if (node.classList && node.classList.contains('yt-list-item-view-model__container')) {
+      const label = node.querySelector('.yt-core-attributed-string');
+      if (label) {
+        const labelText = (label.textContent || '').toLowerCase();
+        return patterns.some((pattern) => pattern.test(labelText));
+      }
+    }
+    return false;
+  }
+
+  function matchWatchLaterMenuEntry(node) {
+    return matchMenuEntry(node, WATCH_LATER_PATTERNS);
+  }
+
+  function matchNotInterestedMenuEntry(node) {
+    return matchMenuEntry(node, NOT_INTERESTED_PATTERNS);
+  }
+
+  function triggerMenuAction(tile, matcher, label) {
+    log('fallback: attempting menu route', { label });
 
     const clickNode = (node) => {
       if (!node) {
@@ -361,16 +389,16 @@
 
     const findMenuItem = () => {
       const selectors = [
-        ' .yt-list-item-view-model__container',
+        '.yt-list-item-view-model__container',
         'ytd-menu-service-item-renderer',
         'tp-yt-paper-item[role="menuitem"]',
         'yt-formatted-string[role="menuitem"]'
       ];
       for (const selector of selectors) {
-        const nodes = Array.from(document.querySelectorAll(selector.trim()));
-        const match = nodes.find(watchLaterMatch);
+        const nodes = Array.from(document.querySelectorAll(selector));
+        const match = nodes.find(matcher);
         if (match && clickNode(match)) {
-          log('fallback: menu entry clicked', { selector });
+          log('fallback: menu entry clicked', { selector, label });
           return true;
         }
       }
@@ -395,32 +423,33 @@
       .find((node) => node instanceof HTMLElement);
 
     if (!menuButton) {
-      log('fallback: menu button not found');
+      log('fallback: menu button not found', { label });
       return false;
     }
 
     menuButton.click();
-    log('fallback: menu button clicked');
+    log('fallback: menu button clicked', { label });
 
     let attempts = 0;
     const maxAttempts = 25;
     const interval = setInterval(() => {
       if (findMenuItem()) {
         clearInterval(interval);
-        log('fallback: menu item located via polling');
+        log('fallback: menu item located via polling', { label });
         return;
       }
       attempts += 1;
       if (attempts >= maxAttempts) {
         clearInterval(interval);
-        log('fallback: menu polling exceeded attempts');
+        log('fallback: menu polling exceeded attempts', { label });
       }
     }, 80);
 
     return true;
   }
 
-  function maybeRequestExit() {
+  
+function maybeRequestExit() {
     if (!coreUtils.shouldRequestExit(state.skipCount, state.settings.skipCloseThreshold)) {
       return;
     }
@@ -486,6 +515,13 @@
       }
       return;
     }
+    if (message.type === 'command-not-interested') {
+      const ok = markCurrentAsNotInterested();
+      if (typeof sendResponse === 'function') {
+        sendResponse({ ok });
+      }
+      return;
+    }
     if (message.type === 'options-updated') {
       loadSettings().then(() => {
         syncRootFlags();
@@ -521,6 +557,7 @@
       advanceCursor,
       resetCursor,
       addCurrentToWatchLater,
+      markCurrentAsNotInterested,
       scheduleApply,
       getState: () => computeStateSnapshot(),
       isHomePage

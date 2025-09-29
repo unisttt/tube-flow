@@ -1,7 +1,8 @@
 const NAMESPACE = '[TubeFlow][BG]';
 const COMMAND_TO_MESSAGE = {
   'tube-flow-next': 'command-next',
-  'tube-flow-watch-later': 'command-watch-later'
+  'tube-flow-watch-later': 'command-watch-later',
+  'tube-flow-not-interested': 'command-not-interested'
 };
 
 chrome.runtime.onInstalled.addListener(() => {

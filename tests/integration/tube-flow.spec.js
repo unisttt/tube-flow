@@ -73,6 +73,15 @@ test.describe('Tube Flow integration', () => {
       return button?.dataset?.clicked === 'true';
     });
     expect(clickedWatchLater).toBe(true);
+
+    await page.click('.hd-controls button[data-action="not-interested"]');
+    const clickedNotInterested = await page.evaluate(() => {
+      const tile = Array.from(document.querySelectorAll('ytd-rich-item-renderer'))
+        .find((el) => !el.classList.contains('hd-hidden'));
+      const button = tile?.querySelector('.not-interested');
+      return button?.dataset?.clicked === 'true';
+    });
+    expect(clickedNotInterested).toBe(true);
   });
 
   test('applies settings changes from options page', async ({ context, extensionId }) => {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tube Flow",
   "description": "YouTube ホームで表示カードを制限し、集中をサポートするツール",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "permissions": [
     "storage",
     "tabs"
@@ -55,6 +55,13 @@
         "mac": "Alt+L"
       },
       "description": "現在カードを後で見るに追加"
+    },
+    "tube-flow-not-interested": {
+      "suggested_key": {
+        "default": "Alt+Shift+I",
+        "mac": "Alt+Shift+I"
+      },
+      "description": "現在カードを興味なしにする"
     }
   },
   "options_ui": {
