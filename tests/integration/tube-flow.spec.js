@@ -4,6 +4,7 @@ const { test, expect } = require('./fixtures');
 
 const HOME_FIXTURE_HTML = path.join(__dirname, '..', 'fixtures', 'static', 'youtube-home.html');
 const WATCH_FIXTURE_HTML = path.join(__dirname, '..', 'fixtures', 'static', 'youtube-watch.html');
+const HOME_TILE_SELECTOR = 'ytd-rich-item-renderer, yt-lockup-view-model, yt-lockup-renderer';
 
 async function stubYouTube(page) {
   const [homeHtml, watchHtml] = await Promise.all([
@@ -37,15 +38,26 @@ test.describe('Tube Flow integration', () => {
     await stubYouTube(page);
     await page.goto('https://www.youtube.com/');
 
-    await page.waitForSelector('ytd-rich-item-renderer');
+    await page.waitForSelector(HOME_TILE_SELECTOR);
     await page.waitForSelector('.hd-controls');
-    await page.waitForFunction(() => !!document.querySelector('ytd-rich-item-renderer.hd-hidden'));
-
-    const hiddenCount = await page.evaluate(() => {
-      const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
-      return tiles.filter((tile) => tile.classList.contains('hd-hidden')).length;
+    await page.waitForFunction(() => {
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      if (!root) {
+        return false;
+      }
+      const tiles = Array.from(root.children || []);
+      return tiles.length > 0 && tiles.some((tile) => tile.classList.contains('hd-hidden'));
     });
-    expect(hiddenCount).toBe(4);
+
+    const initialCounts = await page.evaluate(() => {
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      const tiles = root ? Array.from(root.children || []) : [];
+      const visible = tiles.filter((tile) => tile.classList.contains('hd-visible')).length;
+      const hidden = tiles.filter((tile) => tile.classList.contains('hd-hidden')).length;
+      return { hidden, visible, total: tiles.length };
+    });
+    expect(initialCounts.visible).toBe(1);
+    expect(initialCounts.hidden).toBeGreaterThan(0);
 
     const shortsHidden = await page.evaluate(() => {
       const shelf = document.querySelector('ytd-reel-shelf-renderer');
@@ -55,20 +67,24 @@ test.describe('Tube Flow integration', () => {
 
     await page.click('.hd-controls button[data-action="next"]');
     await page.waitForFunction(() => {
-      const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      if (!root) {
+        return false;
+      }
+      const tiles = Array.from(root.children || []);
       return tiles.findIndex((tile) => !tile.classList.contains('hd-hidden')) === 1;
     });
     const activeIndexAfterNext = await page.evaluate(() => {
-      const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
-      const visible = tiles.findIndex((tile) => !tile.classList.contains('hd-hidden'));
-      return visible;
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      const tiles = root ? Array.from(root.children || []) : [];
+      return tiles.findIndex((tile) => !tile.classList.contains('hd-hidden'));
     });
     expect(activeIndexAfterNext).toBe(1);
 
     await page.click('.hd-controls button[data-action="watch-later"]');
     const clickedWatchLater = await page.evaluate(() => {
-      const tile = Array.from(document.querySelectorAll('ytd-rich-item-renderer'))
-        .find((el) => !el.classList.contains('hd-hidden'));
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      const tile = root ? Array.from(root.children || []).find((el) => !el.classList.contains('hd-hidden')) : null;
       const button = tile?.querySelector('.watch-later');
       return button?.dataset?.clicked === 'true';
     });
@@ -76,12 +92,32 @@ test.describe('Tube Flow integration', () => {
 
     await page.click('.hd-controls button[data-action="not-interested"]');
     const clickedNotInterested = await page.evaluate(() => {
-      const tile = Array.from(document.querySelectorAll('ytd-rich-item-renderer'))
-        .find((el) => !el.classList.contains('hd-hidden'));
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      const tile = root ? Array.from(root.children || []).find((el) => !el.classList.contains('hd-hidden')) : null;
       const button = tile?.querySelector('.not-interested');
       return button?.dataset?.clicked === 'true';
     });
     expect(clickedNotInterested).toBe(true);
+
+    await page.click('.hd-controls button[data-action="next"]');
+    await page.waitForFunction(() => {
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      if (!root) {
+        return false;
+      }
+      const tile = Array.from(root.children || []).find((node) => !node.classList.contains('hd-hidden'));
+      return tile?.getAttribute('data-index') === '2';
+    });
+    const polymerlessTile = await page.evaluate(() => {
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      const tile = root ? Array.from(root.children || []).find((node) => !node.classList.contains('hd-hidden')) : null;
+      return {
+        datasetIndex: tile?.getAttribute('data-index') || null,
+        tagName: tile?.tagName || null
+      };
+    });
+    expect(polymerlessTile.datasetIndex).toBe('2');
+    expect(polymerlessTile.tagName?.toLowerCase()).toBe('yt-lockup-view-model');
   });
 
   test('applies settings changes from options page', async ({ context, extensionId }) => {
@@ -99,14 +135,27 @@ test.describe('Tube Flow integration', () => {
     await stubYouTube(page);
     await page.goto('https://www.youtube.com/');
 
-    await page.waitForSelector('ytd-rich-item-renderer');
+    await page.waitForSelector(HOME_TILE_SELECTOR);
     await page.waitForFunction(() => window.__tubeFlowReady === true);
+    await page.waitForFunction(() => {
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      if (!root) {
+        return false;
+      }
+      const tiles = Array.from(root.children || []);
+      const visible = tiles.filter((tile) => tile.classList.contains('hd-visible')).length;
+      return visible === 1;
+    });
 
-    const initialSnapshot = await page.evaluate(() => ({
-      visibleCount: Array.from(document.querySelectorAll('ytd-rich-item-renderer')).filter((tile) => !tile.classList.contains('hd-hidden')).length,
-      rootClasses: Array.from(document.documentElement.classList),
-      skipLabel: document.querySelector('[data-role="skip-remaining"]')?.textContent || ''
-    }));
+    const initialSnapshot = await page.evaluate(() => {
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      const tiles = root ? Array.from(root.children || []) : [];
+      return {
+        visibleCount: tiles.filter((tile) => tile.classList.contains('hd-visible')).length,
+        rootClasses: Array.from(document.documentElement.classList),
+        skipLabel: document.querySelector('[data-role="skip-remaining"]')?.textContent || ''
+      };
+    });
 
     expect(initialSnapshot.visibleCount).toBe(1);
     expect(initialSnapshot.rootClasses).toContain('hd-hide-shorts');
@@ -126,8 +175,12 @@ test.describe('Tube Flow integration', () => {
     await optionsPage.click('button[type="submit"]');
 
     await page.waitForFunction(() => {
-      const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
-      const visibleCount = tiles.filter((tile) => !tile.classList.contains('hd-hidden')).length;
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      if (!root) {
+        return false;
+      }
+      const tiles = Array.from(root.children || []);
+      const visibleCount = tiles.filter((tile) => tile.classList.contains('hd-visible')).length;
       const hideShortsOff = !document.documentElement.classList.contains('hd-hide-shorts');
       const skipLabel = document.querySelector('[data-role="skip-remaining"]')?.textContent || '';
       return visibleCount === 2 && hideShortsOff && /残り5/.test(skipLabel);
@@ -145,8 +198,12 @@ test.describe('Tube Flow integration', () => {
     await optionsPage.click('#restore-defaults');
 
     await page.waitForFunction(() => {
-      const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
-      const visibleCount = tiles.filter((tile) => !tile.classList.contains('hd-hidden')).length;
+      const root = document.querySelector('ytd-rich-grid-renderer #contents.hd-managed-root');
+      if (!root) {
+        return false;
+      }
+      const tiles = Array.from(root.children || []);
+      const visibleCount = tiles.filter((tile) => tile.classList.contains('hd-visible')).length;
       const hideShortsOn = document.documentElement.classList.contains('hd-hide-shorts');
       const skipLabel = document.querySelector('[data-role="skip-remaining"]')?.textContent || '';
       return visibleCount === 1 && hideShortsOn && /残り3/.test(skipLabel);

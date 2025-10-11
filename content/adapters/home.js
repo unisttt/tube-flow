@@ -3,8 +3,17 @@ window.TubeFlow.adapters = window.TubeFlow.adapters || {};
 
 window.TubeFlow.adapters.home = {
   selectors: {
-    root: 'ytd-rich-grid-renderer #contents',
-    tile: 'ytd-rich-item-renderer',
+    root: [
+      'ytd-rich-grid-renderer > #contents',
+      'ytd-rich-grid-renderer #contents',
+      'ytd-two-column-browse-results-renderer #primary ytd-rich-grid-renderer > #contents',
+      'ytd-two-column-browse-results-renderer #primary ytd-rich-grid-renderer'
+    ],
+    tile: [
+      'ytd-rich-item-renderer',
+      'yt-lockup-view-model',
+      'yt-lockup-renderer'
+    ].join(', '),
     shortsShelves: [
       'ytd-reel-shelf-renderer',
       'ytd-rich-shelf-renderer[is-shorts]',

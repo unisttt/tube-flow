@@ -64,6 +64,9 @@ Chrome の拡張管理画面から 「詳細」→「拡張機能オプション
 - `console.debug` で `[TubeFlow][prelude]`, `[TubeFlow] setReadyState`, `[TubeFlow] applied` などが出力されます。DevTools Console のレベルを “Verbose” にすると一覧できます。
 - `window.addEventListener('tube-flow:state', (event) => console.log(event.detail))` のようにしてコア状態を把握することも可能です。
 
+## 変更履歴
+- **0.2.4**: Polymerless レイアウト（`yt-lockup-view-model`）や棚型セクションに対応するタイル検出ロジックを刷新し、フィルタリング時にカードが一瞬表示されるちらつきを抑制。
+
 ## 今後の拡張案
 - ホーム以外（検索結果 `/results` など）への対応。
 - `skipCloseThreshold` 到達時の動作をオプション UI で選択可能にする（タブ閉鎖など）。

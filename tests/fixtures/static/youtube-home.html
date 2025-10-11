@@ -51,35 +51,39 @@
     <ytd-rich-grid-renderer>
       <div id="contents">
         <ytd-rich-item-renderer data-index="0">
-          <article>
-            <h2>Video 0</h2>
-            <p>First video</p>
-            <div class="actions">
-              <button class="watch-later" aria-label="後で見る">後で見る</button>
-              <button class="not-interested" aria-label="興味なし">興味なし</button>
-            </div>
-          </article>
+          <yt-lockup-view-model class="lockup" data-lockup-index="0">
+            <article>
+              <h2>Video 0</h2>
+              <p>First video</p>
+              <div class="actions">
+                <button class="watch-later" aria-label="後で見る">後で見る</button>
+                <button class="not-interested" aria-label="興味なし">興味なし</button>
+              </div>
+            </article>
+          </yt-lockup-view-model>
         </ytd-rich-item-renderer>
         <ytd-rich-item-renderer data-index="1">
+          <yt-lockup-view-model class="lockup" data-lockup-index="1">
+            <article>
+              <h2>Video 1</h2>
+              <p>Second video</p>
+              <div class="actions">
+                <button class="watch-later" aria-label="Watch later">Watch later</button>
+                <button class="not-interested" aria-label="Not interested">Not interested</button>
+              </div>
+            </article>
+          </yt-lockup-view-model>
+        </ytd-rich-item-renderer>
+        <yt-lockup-view-model data-index="2">
           <article>
-            <h2>Video 1</h2>
-            <p>Second video</p>
+            <h2>Lockup 2</h2>
+            <p>Polymerless item 2</p>
             <div class="actions">
               <button class="watch-later" aria-label="Watch later">Watch later</button>
               <button class="not-interested" aria-label="Not interested">Not interested</button>
             </div>
           </article>
-        </ytd-rich-item-renderer>
-        <ytd-rich-item-renderer data-index="2">
-          <article>
-            <h2>Video 2</h2>
-            <p>Third video</p>
-            <div class="actions">
-              <button class="watch-later" aria-label="Watch later">Watch later</button>
-              <button class="not-interested" aria-label="Not interested">Not interested</button>
-            </div>
-          </article>
-        </ytd-rich-item-renderer>
+        </yt-lockup-view-model>
         <ytd-rich-item-renderer data-index="3">
           <article>
             <h2>Video 3</h2>
@@ -100,6 +104,36 @@
             </div>
           </article>
         </ytd-rich-item-renderer>
+        <yt-lockup-view-model data-index="5">
+          <article>
+            <h2>Lockup 5</h2>
+            <p>Polymerless item 5</p>
+            <div class="actions">
+              <button class="watch-later" aria-label="Watch later">Watch later</button>
+              <button class="not-interested" aria-label="Not interested">Not interested</button>
+            </div>
+          </article>
+        </yt-lockup-view-model>
+        <yt-lockup-view-model data-index="6">
+          <article>
+            <h2>Lockup 6</h2>
+            <p>Polymerless item 6</p>
+            <div class="actions">
+              <button class="watch-later" aria-label="後で見る">後で見る</button>
+              <button class="not-interested" aria-label="興味なし">興味なし</button>
+            </div>
+          </article>
+        </yt-lockup-view-model>
+        <yt-lockup-view-model data-index="7">
+          <article>
+            <h2>Lockup 7</h2>
+            <p>Polymerless item 7</p>
+            <div class="actions">
+              <button class="watch-later" aria-label="Watch later">Watch later</button>
+              <button class="not-interested" aria-label="Not interested">Not interested</button>
+            </div>
+          </article>
+        </yt-lockup-view-model>
       </div>
     </ytd-rich-grid-renderer>
   </body>

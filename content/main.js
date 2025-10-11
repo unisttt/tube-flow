@@ -6,6 +6,14 @@
     skipCloseThreshold: 3,
     watchVisibleCount: 0
   };
+  const ROOT_MANAGED_CLASS = 'hd-managed-root';
+  const MANAGED_ATTR = 'data-tubeflow-tile';
+  const MANAGED_VALUE = '1';
+  const EXCLUDE_ANCESTORS = [
+    'ytd-rich-shelf-renderer',
+    'ytd-reel-shelf-renderer',
+    'ytd-rich-section-renderer'
+  ];
 
   window.TubeFlow = window.TubeFlow || {};
   const homeAdapter = window.TubeFlow.adapters && window.TubeFlow.adapters.home;
@@ -50,6 +58,25 @@
 
   function log(...args) {
     console.debug(NAMESPACE, ...args);
+  }
+  function splitSelectors(selector) {
+    if (!selector || typeof selector !== 'string') {
+      return [];
+    }
+    return selector
+      .split(',')
+      .map((token) => token.trim())
+      .filter(Boolean);
+  }
+
+  function describeNode(node) {
+    if (!node || typeof node !== 'object') {
+      return null;
+    }
+    const tag = typeof node.tagName === 'string' ? node.tagName.toLowerCase() : (node.nodeName || 'unknown');
+    const id = node.id ? `#${node.id}` : '';
+    const className = typeof node.className === 'string' ? node.className.trim().replace(/\s+/g, '.') : '';
+    return `${tag}${id}${className ? `.${className}` : ''}`;
   }
 
   function setHomeActive(active) {
@@ -133,20 +160,34 @@
   function ensureRoot() {
     if (!isHomePage()) {
       disconnectObserver();
-      state.root = null;
+      updateRootReference(null);
       return null;
     }
 
     const selector = homeAdapter.selectors && homeAdapter.selectors.root;
-    if (!selector) {
-      return null;
+    const selectorList = Array.isArray(selector) ? selector : [selector];
+    let nextRoot = null;
+    for (const candidate of selectorList) {
+      if (typeof candidate !== 'string' || !candidate.trim()) {
+        continue;
+      }
+      nextRoot = document.querySelector(candidate);
+      if (nextRoot) {
+        break;
+      }
     }
-    const nextRoot = document.querySelector(selector);
+
     if (!nextRoot) {
+      nextRoot = inferRootFromTiles();
+    }
+    if (!nextRoot) {
+      updateRootReference(null);
       return null;
     }
-    if (state.root !== nextRoot) {
-      state.root = nextRoot;
+    const previousRoot = state.root;
+    updateRootReference(nextRoot);
+    if (state.root !== previousRoot || !state.observer) {
+      log('reconnectObserver (root changed)', { root: describeNode(state.root) });
       reconnectObserver();
     }
     if (state.rootRetryTimer) {
@@ -154,6 +195,36 @@
       state.rootRetryTimer = null;
     }
     return state.root;
+  }
+
+  function inferRootFromTiles() {
+    const tileSelector = homeAdapter.selectors && homeAdapter.selectors.tile;
+    if (!tileSelector || typeof tileSelector !== 'string') {
+      return null;
+    }
+    const candidates = splitSelectors(tileSelector);
+    for (const token of candidates) {
+      const tile = document.querySelector(token);
+      if (!tile) {
+        continue;
+      }
+      const directContents = tile.closest('#contents');
+      if (directContents && directContents.closest('ytd-rich-grid-renderer')) {
+        return directContents;
+      }
+      let parent = tile.parentElement;
+      while (parent && parent !== document.documentElement) {
+        if (parent.id === 'contents' && parent.closest('ytd-rich-grid-renderer')) {
+          return parent;
+        }
+        if (parent.matches && parent.matches('ytd-rich-grid-renderer')) {
+          const contents = parent.querySelector('#contents');
+          return contents || parent;
+        }
+        parent = parent.parentElement;
+      }
+    }
+    return null;
   }
 
   function reconnectObserver() {
@@ -198,10 +269,80 @@
 
   function clearDecorations() {
     if (state.tiles.length) {
-      state.tiles.forEach((tile) => tile.classList.remove('hd-hidden'));
+      state.tiles.forEach((tile) => {
+        tile.classList.remove('hd-hidden', 'hd-visible');
+        tile.removeAttribute(MANAGED_ATTR);
+      });
     }
     state.tiles = [];
+    if (state.root) {
+      state.root.classList.remove(ROOT_MANAGED_CLASS);
+    }
     toggleShorts(false);
+  }
+
+  function setRootManaged(active) {
+    if (!state.root) {
+      log('setRootManaged skipped (no root)', { active });
+      return;
+    }
+    state.root.classList.toggle(ROOT_MANAGED_CLASS, Boolean(active));
+    log('setRootManaged', { active, root: describeNode(state.root), classList: state.root.className });
+  }
+
+  function updateRootReference(nextRoot) {
+    const previous = state.root;
+    if (previous && previous !== nextRoot) {
+      previous.classList.remove(ROOT_MANAGED_CLASS);
+      previous.querySelectorAll(`[${MANAGED_ATTR}]`).forEach((tile) => {
+        tile.classList.remove('hd-hidden', 'hd-visible');
+        tile.removeAttribute(MANAGED_ATTR);
+      });
+    }
+    state.root = nextRoot || null;
+    log('updateRootReference', { previous: describeNode(previous), next: describeNode(state.root) });
+  }
+
+  function normalizeTiles(rawTiles, root, selector) {
+    if (!rawTiles.length) {
+      return rawTiles;
+    }
+    const tokens = splitSelectors(selector);
+    if (!tokens.length) {
+      return rawTiles;
+    }
+    const tokenMatchers = tokens.filter((token) => {
+      try {
+        document.createDocumentFragment().querySelector(token);
+      } catch (error) {
+        log('normalizeTiles: skipping invalid selector', { token, error });
+        return false;
+      }
+      return true;
+    });
+    if (!tokenMatchers.length) {
+      return rawTiles;
+    }
+    const matcher = (element) => tokenMatchers.some((token) => element.matches && element.matches(token));
+    const filtered = rawTiles.filter((tile) => {
+      let parent = tile.parentElement;
+      while (parent && parent !== root) {
+        if (matcher(parent)) {
+          return false;
+        }
+        parent = parent.parentElement;
+      }
+      return true;
+    });
+    const withoutAncestors = filtered.filter((tile) => !EXCLUDE_ANCESTORS.some((selector) => tile.closest(selector)));
+    if (filtered.length !== rawTiles.length || withoutAncestors.length !== filtered.length) {
+      log('normalizeTiles reduced tiles', {
+        before: rawTiles.length,
+        afterDedup: filtered.length,
+        afterExclusion: withoutAncestors.length
+      });
+    }
+    return withoutAncestors;
   }
 
   function applyVisibility(reason) {
@@ -209,37 +350,68 @@
       setHomeActive(false);
       setReadyState(false);
       clearDecorations();
+      updateRootReference(null);
       return;
     }
-    setHomeActive(true);
     const root = ensureRoot();
     if (!root) {
+      setHomeActive(false);
       setReadyState(false);
+      setRootManaged(false);
       requestRootRetry();
       return;
     }
+    setHomeActive(true);
 
     const tileSelector = homeAdapter.selectors && homeAdapter.selectors.tile;
     if (!tileSelector) {
       return;
     }
-    const tiles = Array.from(root.querySelectorAll(tileSelector));
+    const rawTiles = Array.from(root.querySelectorAll(tileSelector));
+    const tiles = normalizeTiles(rawTiles, root, tileSelector);
+    log('tileScan', { rawCount: rawTiles.length, normalizedCount: tiles.length });
+    if (tiles.length === 0) {
+      clearDecorations();
+      state.tiles = [];
+      setReadyState(false);
+      setHomeActive(false);
+      setRootManaged(false);
+      requestRootRetry();
+      return;
+    }
+    const previousTiles = state.tiles;
+    previousTiles.forEach((tile) => {
+      if (!tiles.includes(tile)) {
+        tile.classList.remove('hd-hidden', 'hd-visible');
+        tile.removeAttribute(MANAGED_ATTR);
+      }
+    });
     state.tiles = tiles;
     const visibleCount = effectiveVisibleCount();
     const cursor = coreUtils.clampCursor(state.cursorIndex, tiles.length, visibleCount);
     state.cursorIndex = cursor;
 
     const bounds = coreUtils.computeVisibleBounds(cursor, visibleCount);
+    setRootManaged(true);
 
     tiles.forEach((tile, index) => {
+      tile.setAttribute(MANAGED_ATTR, MANAGED_VALUE);
       const shouldShow = visibleCount > 0 && index >= bounds.start && index < bounds.end;
       tile.classList.toggle('hd-visible', shouldShow);
       tile.classList.toggle('hd-hidden', !shouldShow);
+      if (index < 5 || index === cursor || index === bounds.end - 1) {
+        log('tileUpdate', {
+          index,
+          shouldShow,
+          descriptor: describeNode(tile),
+          classes: tile.className
+        });
+      }
     });
 
     toggleShorts(Boolean(state.settings.hideShorts));
     setReadyState(true);
-    log('applied', { reason, visibleCount, cursor, totalTiles: tiles.length });
+    log('applied', { reason, visibleCount, cursor, totalTiles: tiles.length, rawTiles: rawTiles.length });
     emitStateUpdate('apply');
   }
 

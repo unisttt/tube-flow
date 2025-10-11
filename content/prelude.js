@@ -14,16 +14,28 @@
     const style = document.createElement('style');
     style.id = 'tube-flow-prehide';
     style.textContent = `
-      html.hd-home-target ytd-rich-grid-renderer #contents ytd-rich-item-renderer {
+      html.hd-home-target:not(.hd-ready) ytd-rich-grid-renderer #contents :is(ytd-rich-item-renderer, yt-lockup-view-model, yt-lockup-renderer) {
         visibility: hidden !important;
         opacity: 0 !important;
       }
-      html.hd-home-target ytd-rich-grid-renderer #contents ytd-rich-item-renderer.hd-visible {
+      html.hd-home-target ytd-rich-grid-renderer #contents.hd-managed-root [data-tubeflow-tile="1"] {
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+      html.hd-home-target ytd-rich-grid-renderer #contents.hd-managed-root [data-tubeflow-tile="1"].hd-visible {
         visibility: visible !important;
         opacity: 1 !important;
       }
-      html.hd-home-target ytd-rich-grid-renderer #contents ytd-rich-item-renderer.hd-hidden {
+      html.hd-home-target ytd-rich-grid-renderer #contents.hd-managed-root [data-tubeflow-tile="1"].hd-hidden {
         display: none !important;
+      }
+      html.hd-home-target ytd-rich-grid-renderer #contents.hd-managed-root > * {
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+      html.hd-home-target ytd-rich-grid-renderer #contents.hd-managed-root > *.hd-visible {
+        visibility: visible !important;
+        opacity: 1 !important;
       }
       html.hd-home-target.hd-hide-shorts ytd-reel-shelf-renderer,
       html.hd-home-target.hd-hide-shorts ytd-rich-shelf-renderer[is-shorts],
