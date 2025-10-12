@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tube Flow</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #ffffff;
+        color: #111827;
+        width: 320px;
+      }
+      main {
+        padding: 16px 16px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #1f2937;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      label.toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+      label.toggle input[type='checkbox'] {
+        width: 18px;
+        height: 18px;
+      }
+      label.field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+      label.field span.label {
+        flex: 1;
+        color: #1f2937;
+      }
+      .controls {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        overflow: hidden;
+        background: #f9fafb;
+      }
+      .controls button {
+        appearance: none;
+        border: none;
+        width: 28px;
+        height: 28px;
+        background: transparent;
+        color: #2563eb;
+        font-size: 1rem;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+      }
+      .controls button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .controls input[type='number'] {
+        width: 44px;
+        border: none;
+        background: transparent;
+        text-align: center;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #111827;
+        padding: 0;
+        margin: 0;
+        appearance: textfield;
+      }
+      .controls input[type='number']::-webkit-outer-spin-button,
+      .controls input[type='number']::-webkit-inner-spin-button {
+        display: none;
+        margin: 0;
+      }
+      .foot {
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .foot button {
+        border: none;
+        border-radius: 9999px;
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        background: #2563eb;
+        color: #ffffff;
+        font-weight: 600;
+      }
+      .foot button.secondary {
+        background: transparent;
+        color: #2563eb;
+      }
+      #status {
+        flex: 1;
+        font-size: 0.85rem;
+        color: #2563eb;
+        min-height: 1.2em;
+        text-align: right;
+      }
+      #status[data-error='true'] {
+        color: #dc2626;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tube Flow</h1>
+      <form id="popup-form">
+        <label class="toggle" for="enabled">
+          <input type="checkbox" id="enabled" name="enabled" />
+          <span>Tube Flow を有効にする</span>
+        </label>
+
+        <label class="toggle" for="hideShorts">
+          <input type="checkbox" id="hideShorts" name="hideShorts" />
+          <span>Shorts を非表示にする</span>
+        </label>
+
+        <label class="field" for="visibleCount">
+          <span class="label">表示カード数</span>
+          <span class="controls">
+            <button
+              type="button"
+              class="step"
+              data-target="visibleCount"
+              data-step="-1"
+              aria-label="表示カード数を減らす"
+            >
+              -
+            </button>
+            <input type="number" id="visibleCount" name="visibleCount" min="0" max="6" />
+            <button
+              type="button"
+              class="step"
+              data-target="visibleCount"
+              data-step="1"
+              aria-label="表示カード数を増やす"
+            >
+              +
+            </button>
+          </span>
+        </label>
+
+        <label class="field" for="watchVisibleCount">
+          <span class="label">おすすめ表示数</span>
+          <span class="controls">
+            <button
+              type="button"
+              class="step"
+              data-target="watchVisibleCount"
+              data-step="-1"
+              aria-label="おすすめ表示数を減らす"
+            >
+              -
+            </button>
+            <input type="number" id="watchVisibleCount" name="watchVisibleCount" min="0" max="20" />
+            <button
+              type="button"
+              class="step"
+              data-target="watchVisibleCount"
+              data-step="1"
+              aria-label="おすすめ表示数を増やす"
+            >
+              +
+            </button>
+          </span>
+        </label>
+
+        <label class="field" for="skipCloseThreshold">
+          <span class="label">連続スキップ回数</span>
+          <span class="controls">
+            <button
+              type="button"
+              class="step"
+              data-target="skipCloseThreshold"
+              data-step="-1"
+              aria-label="連続スキップ回数を減らす"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              id="skipCloseThreshold"
+              name="skipCloseThreshold"
+              min="0"
+              max="10"
+            />
+            <button
+              type="button"
+              class="step"
+              data-target="skipCloseThreshold"
+              data-step="1"
+              aria-label="連続スキップ回数を増やす"
+            >
+              +
+            </button>
+          </span>
+        </label>
+
+        <div class="foot">
+          <div id="status" aria-live="polite" role="status"></div>
+          <button type="button" class="secondary" id="open-options">詳細設定</button>
+          <button type="button" id="restore-defaults">既定値</button>
+        </div>
+      </form>
+    </main>
+    <script type="module" src="index.js"></script>
+  </body>
+</html>

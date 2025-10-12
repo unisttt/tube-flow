@@ -22,6 +22,10 @@
     if (!core) {
       return;
     }
+    const snapshot = core.getState ? core.getState() : null;
+    if (!snapshot || !snapshot.settings?.enabled) {
+      return;
+    }
     if (action === 'next') {
       core.advanceCursor?.(1);
     } else if (action === 'watch-later') {
@@ -44,8 +48,11 @@
       return;
     }
     const core = getCore();
-    const isHome = Boolean(core && typeof core.isHomePage === 'function' && core.isHomePage());
-    container.style.display = isHome ? 'flex' : 'none';
+    const snapshot = core && core.getState ? core.getState() : null;
+    const enabled = Boolean(snapshot?.settings?.enabled);
+    const isHome = Boolean(snapshot?.isHome);
+    container.style.display = enabled && isHome ? 'flex' : 'none';
+    container.classList.toggle('hd-disabled', !enabled);
   }
 
   function mount() {
@@ -80,6 +87,14 @@
     }
     const snapshot = core.getState ? core.getState() : null;
     if (!snapshot || !skipRemainingNode) {
+      return;
+    }
+
+    const enabled = Boolean(snapshot.settings?.enabled);
+    if (!enabled) {
+      skipRemainingNode.textContent = '';
+      skipRemainingNode.style.display = 'none';
+      container.classList.remove('hd-exit-requested');
       return;
     }
 
@@ -121,6 +136,7 @@
     if (!event || !event.detail) {
       return;
     }
+    updateVisibility();
     updateState();
   });
 

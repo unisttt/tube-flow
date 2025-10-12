@@ -2,6 +2,7 @@
   const NAMESPACE = '[TubeFlow][watch]';
   const CLASS_TARGET = 'hd-watch-target';
   const DEFAULTS = {
+    enabled: true,
     watchVisibleCount: 0
   };
   const TILE_SELECTOR = [
@@ -208,9 +209,23 @@
       return;
     }
 
+    const root = ensureRoot();
+
+    if (!state.settings.enabled) {
+      setWatchActive(false);
+      setWatchReady(false);
+      clearDecorations();
+      disconnectObserver();
+      state.root = null;
+      if (state.rootRetryTimer) {
+        clearTimeout(state.rootRetryTimer);
+        state.rootRetryTimer = null;
+      }
+      return;
+    }
+
     setWatchActive(true);
     setWatchReady(false);
-    const root = ensureRoot();
     if (!root) {
       requestRootRetry();
       return;
@@ -256,16 +271,23 @@
     if (area !== 'sync') {
       return;
     }
-    if (!Object.prototype.hasOwnProperty.call(changes, 'watchVisibleCount')) {
-      return;
+    let updated = false;
+    if (Object.prototype.hasOwnProperty.call(changes, 'watchVisibleCount')) {
+      state.settings.watchVisibleCount = changes.watchVisibleCount.newValue ?? DEFAULTS.watchVisibleCount;
+      updated = true;
     }
-    state.settings.watchVisibleCount = changes.watchVisibleCount.newValue ?? DEFAULTS.watchVisibleCount;
-    scheduleApply('settings-change');
+    if (Object.prototype.hasOwnProperty.call(changes, 'enabled')) {
+      state.settings.enabled = changes.enabled.newValue ?? DEFAULTS.enabled;
+      updated = true;
+    }
+    if (updated) {
+      scheduleApply('settings-change');
+    }
   }
 
   function handleNavigation() {
     clearDecorations();
-    setWatchActive(isWatchPage());
+    setWatchActive(isWatchPage() && state.settings.enabled);
     setWatchReady(false);
     scheduleApply('navigate');
   }
@@ -287,7 +309,7 @@
 
   async function init() {
     await loadSettings();
-    setWatchActive(isWatchPage());
+    setWatchActive(isWatchPage() && state.settings.enabled);
     setWatchReady(false);
     scheduleApply('init');
 

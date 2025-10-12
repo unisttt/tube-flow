@@ -87,6 +87,9 @@
         color: #2563eb;
         min-height: 1.2em;
       }
+      #status[data-error='true'] {
+        color: #dc2626;
+      }
       dl.summary {
         margin: 24px 0 0;
         display: grid;
@@ -105,6 +108,17 @@
     <p class="description">YouTube ホームでの表示件数や Shorts 抑制、動画再生ページのおすすめ表示数、連続スキップ閾値を変更できます。</p>
 
     <form id="options-form">
+      <fieldset>
+        <legend>基本設定</legend>
+        <div class="field">
+          <label for="enabled">
+            <input type="checkbox" id="enabled" name="enabled" />
+            Tube Flow を有効にする
+          </label>
+          <small>チェックを外すと拡張機能の機能を一時的に停止します。</small>
+        </div>
+      </fieldset>
+
       <fieldset>
         <legend>表示制御</legend>
         <div class="field">

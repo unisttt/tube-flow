@@ -7,6 +7,17 @@
   const isYouTubeHome = () => /(^|\.)youtube\.com$/.test(location.hostname) && location.pathname === '/';
   const isYouTubeWatch = () => /(^|\.)youtube\.com$/.test(location.hostname) && location.pathname.startsWith('/watch');
 
+  let enabled = true;
+
+  function syncEnabledFlag(flag) {
+    enabled = flag !== false;
+    html.dataset.tubeFlowEnabled = enabled ? '1' : '0';
+    html.classList.toggle('hd-disabled', !enabled);
+    if (!enabled) {
+      html.classList.remove('hd-hide-shorts');
+    }
+  }
+
   function ensureStyle() {
     if (document.getElementById('tube-flow-prehide')) {
       return;
@@ -79,10 +90,13 @@
   }
 
   function updateClasses() {
+    if (typeof html.dataset.tubeFlowEnabled !== 'undefined') {
+      enabled = html.dataset.tubeFlowEnabled !== '0';
+    }
     const home = isYouTubeHome();
     const watch = isYouTubeWatch();
-    html.classList.toggle('hd-home-target', home);
-    html.classList.toggle('hd-watch-target', watch);
+    html.classList.toggle('hd-home-target', enabled && home);
+    html.classList.toggle('hd-watch-target', enabled && watch);
     html.classList.remove('hd-ready');
     if (!watch) {
       html.classList.remove('hd-watch-ready');
@@ -97,6 +111,10 @@
   }
 
   function applyHideShortsFlag(flag) {
+    if (!enabled) {
+      html.classList.remove('hd-hide-shorts');
+      return;
+    }
     if (flag) {
       html.classList.add('hd-hide-shorts');
     } else {
@@ -106,10 +124,12 @@
 
   function loadInitialSettings() {
     if (!chrome || !chrome.storage || !chrome.storage.sync) {
+      syncEnabledFlag(true);
       applyHideShortsFlag(true);
       return;
     }
-    chrome.storage.sync.get({ hideShorts: true }, (items) => {
+    chrome.storage.sync.get({ hideShorts: true, enabled: true }, (items) => {
+      syncEnabledFlag(items?.enabled !== false);
       applyHideShortsFlag(items?.hideShorts !== false);
     });
   }
@@ -118,4 +138,11 @@
   updateClasses();
   loadInitialSettings();
   document.addEventListener('yt-navigate-start', updateClasses);
+  document.addEventListener('yt-navigate-finish', updateClasses);
+  document.addEventListener('tube-flow:enabled-flag', (event) => {
+    if (event && typeof event.detail?.enabled === 'boolean') {
+      syncEnabledFlag(event.detail.enabled);
+    }
+    updateClasses();
+  });
 })();

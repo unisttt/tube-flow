@@ -1,24 +1,12 @@
-const DEFAULTS = {
-  visibleCount: 1,
-  hideShorts: true,
-  skipCloseThreshold: 3,
-  watchVisibleCount: 0
-};
+import { notifyContentScripts, readSettings, resetSettings, writeSettings } from '../shared/settings.js';
 
 const form = document.getElementById('options-form');
 const status = document.getElementById('status');
 const summary = document.getElementById('summary');
 
-function clampNumber(value, min, max, fallback) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) {
-    return fallback;
-  }
-  return Math.min(max, Math.max(min, Math.floor(num)));
-}
-
 function renderSummary(settings) {
   const entries = [
+    ['機能', settings.enabled ? '有効' : '無効'],
     ['表示カード数', settings.visibleCount],
     ['おすすめ表示数', settings.watchVisibleCount],
     ['Shorts 非表示', settings.hideShorts ? '有効' : '無効'],
@@ -29,92 +17,80 @@ function renderSummary(settings) {
     .join('');
 }
 
-function loadSettings() {
-  chrome.storage.sync.get(DEFAULTS, (items) => {
-    const settings = { ...DEFAULTS, ...(items || {}) };
-    form.visibleCount.value = Number(settings.visibleCount) || 0;
-    form.watchVisibleCount.value = Number(settings.watchVisibleCount) || 0;
-    form.hideShorts.checked = Boolean(settings.hideShorts);
-    form.skipCloseThreshold.value = Number(settings.skipCloseThreshold) || 0;
-    renderSummary(settings);
-  });
+function applySettingsToForm(settings) {
+  form.enabled.checked = Boolean(settings.enabled);
+  form.visibleCount.value = String(settings.visibleCount);
+  form.watchVisibleCount.value = String(settings.watchVisibleCount);
+  form.hideShorts.checked = settings.hideShorts;
+  form.skipCloseThreshold.value = String(settings.skipCloseThreshold);
+  renderSummary(settings);
 }
 
-function notifyContentScripts() {
-  const message = { source: 'tube-flow', type: 'options-updated' };
-
-  try {
-    chrome.runtime.sendMessage(message, () => {
-      const err = chrome.runtime.lastError;
-      if (err && !/Receiving end does not exist/i.test(err.message)) {
-        console.warn('[TubeFlow][options] runtime notify failed', err);
-      }
-    });
-  } catch (error) {
-    console.warn('[TubeFlow][options] runtime notify threw', error);
-  }
-
-  if (!chrome.tabs || !chrome.tabs.query) {
+function showStatus(message, isError = false) {
+  if (!message) {
+    status.textContent = '';
+    delete status.dataset.error;
     return;
   }
-
-  chrome.tabs.query({ url: '*://www.youtube.com/*' }, (tabs) => {
-    const queryError = chrome.runtime.lastError;
-    if (queryError) {
-      console.warn('[TubeFlow][options] tabs query failed', queryError);
-      return;
+  status.textContent = message;
+  status.dataset.error = String(isError);
+  window.setTimeout(() => {
+    if (status.textContent === message) {
+      status.textContent = '';
+      delete status.dataset.error;
     }
-    tabs.forEach((tab) => {
-      try {
-        chrome.tabs.sendMessage(tab.id, message, () => {
-          const sendErr = chrome.runtime.lastError;
-          if (sendErr && !/Receiving end does not exist/i.test(sendErr.message)) {
-            console.warn('[TubeFlow][options] tab notify failed', sendErr);
-          }
-        });
-      } catch (error) {
-        console.warn('[TubeFlow][options] tab notify threw', error);
-      }
-    });
-  });
+  }, 2500);
 }
 
-function saveSettings(event) {
+async function loadSettings() {
+  try {
+    const settings = await readSettings();
+    applySettingsToForm(settings);
+  } catch (error) {
+    console.warn('[TubeFlow][options] failed to load settings', error);
+    showStatus('設定の読み込みに失敗しました', true);
+  }
+}
+
+async function handleSave(event) {
   event.preventDefault();
-  const settings = {
-    visibleCount: clampNumber(form.visibleCount.value, 0, 6, DEFAULTS.visibleCount),
-    watchVisibleCount: clampNumber(form.watchVisibleCount.value, 0, 20, DEFAULTS.watchVisibleCount),
-    hideShorts: Boolean(form.hideShorts.checked),
-    skipCloseThreshold: clampNumber(form.skipCloseThreshold.value, 0, 10, DEFAULTS.skipCloseThreshold)
+  const rawSettings = {
+    enabled: form.enabled.checked,
+    visibleCount: form.visibleCount.value,
+    watchVisibleCount: form.watchVisibleCount.value,
+    hideShorts: form.hideShorts.checked,
+    skipCloseThreshold: form.skipCloseThreshold.value
   };
 
-  chrome.storage.sync.set(settings, () => {
-    const message = chrome.runtime.lastError
-      ? `保存に失敗しました: ${chrome.runtime.lastError.message}`
-      : '保存しました';
-    status.textContent = message;
-    renderSummary(settings);
+  try {
+    const settings = await writeSettings(rawSettings);
+    applySettingsToForm(settings);
+    showStatus('保存しました');
     notifyContentScripts();
-    window.setTimeout(() => {
-      status.textContent = '';
-    }, 2500);
-  });
+  } catch (error) {
+    console.warn('[TubeFlow][options] failed to save settings', error);
+    showStatus(
+      `保存に失敗しました${error?.message ? `: ${error.message}` : ''}`,
+      true
+    );
+  }
 }
 
-function restoreDefaults() {
-  chrome.storage.sync.set(DEFAULTS, () => {
-    loadSettings();
-    status.textContent = '既定値を適用しました';
+async function handleRestoreDefaults() {
+  try {
+    const settings = await resetSettings();
+    applySettingsToForm(settings);
+    showStatus('既定値を適用しました');
     notifyContentScripts();
-    window.setTimeout(() => {
-      status.textContent = '';
-    }, 2500);
-  });
+  } catch (error) {
+    console.warn('[TubeFlow][options] failed to reset settings', error);
+    showStatus('既定値の適用に失敗しました', true);
+  }
 }
 
 function init() {
-  document.getElementById('restore-defaults').addEventListener('click', restoreDefaults);
-  form.addEventListener('submit', saveSettings);
+  document.getElementById('restore-defaults').addEventListener('click', handleRestoreDefaults);
+  form.addEventListener('submit', handleSave);
   loadSettings();
 }
 

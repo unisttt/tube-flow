@@ -1,6 +1,7 @@
 (() => {
   const NAMESPACE = '[TubeFlow]';
   const DEFAULT_SETTINGS = {
+    enabled: true,
     visibleCount: 1,
     hideShorts: true,
     skipCloseThreshold: 3,
@@ -35,6 +36,25 @@
     rootRetryTimer: null,
     exitRequested: false
   };
+
+  function isEnabled() {
+    return Boolean(state.settings.enabled);
+  }
+
+  function syncEnabledIndicators() {
+    const root = document.documentElement;
+    if (!root) {
+      return;
+    }
+    const enabled = isEnabled();
+    root.dataset.tubeFlowEnabled = enabled ? '1' : '0';
+    root.classList.toggle('hd-disabled', !enabled);
+    try {
+      document.dispatchEvent(new CustomEvent('tube-flow:enabled-flag', { detail: { enabled } }));
+    } catch (error) {
+      log('syncEnabledIndicators dispatch failed', { error });
+    }
+  }
 
   function computeStateSnapshot() {
     const threshold = Math.max(0, Number(state.settings.skipCloseThreshold) || 0);
@@ -104,7 +124,7 @@
     if (!root) {
       return;
     }
-    root.classList.toggle('hd-hide-shorts', Boolean(state.settings.hideShorts));
+    root.classList.toggle('hd-hide-shorts', Boolean(state.settings.hideShorts && isEnabled()));
   }
 
   function isHomePage() {
@@ -118,16 +138,21 @@
         chrome.storage.sync.get(DEFAULT_SETTINGS, (items) => {
           if (chrome.runtime.lastError) {
             console.warn(`${NAMESPACE} storage get failed`, chrome.runtime.lastError);
+            syncEnabledIndicators();
+            syncRootFlags();
             resolve(state.settings);
             return;
           }
           state.settings = { ...DEFAULT_SETTINGS, ...(items || {}) };
           log('settings loaded', state.settings);
+          syncEnabledIndicators();
           syncRootFlags();
           resolve(state.settings);
         });
       } catch (error) {
         console.error(`${NAMESPACE} storage exception`, error);
+        syncEnabledIndicators();
+        syncRootFlags();
         resolve(state.settings);
       }
     });
@@ -353,15 +378,26 @@
       updateRootReference(null);
       return;
     }
+    if (!isEnabled()) {
+      syncEnabledIndicators();
+      setHomeActive(false);
+      setReadyState(false);
+      clearDecorations();
+      setRootManaged(false);
+      disconnectObserver();
+      updateRootReference(null);
+      emitStateUpdate('disabled');
+      return;
+    }
+    syncEnabledIndicators();
+    setHomeActive(true);
     const root = ensureRoot();
     if (!root) {
-      setHomeActive(false);
       setReadyState(false);
       setRootManaged(false);
       requestRootRetry();
       return;
     }
-    setHomeActive(true);
 
     const tileSelector = homeAdapter.selectors && homeAdapter.selectors.tile;
     if (!tileSelector) {
@@ -409,13 +445,16 @@
       }
     });
 
-    toggleShorts(Boolean(state.settings.hideShorts));
+    toggleShorts(Boolean(state.settings.hideShorts && isEnabled()));
     setReadyState(true);
     log('applied', { reason, visibleCount, cursor, totalTiles: tiles.length, rawTiles: rawTiles.length });
     emitStateUpdate('apply');
   }
 
   function advanceCursor(step = 1) {
+    if (!isEnabled()) {
+      return;
+    }
     if (!Number.isFinite(step) || step === 0) {
       return;
     }
@@ -439,6 +478,9 @@
   }
 
   function getCurrentTile() {
+    if (!isEnabled()) {
+      return null;
+    }
     if (!state.tiles.length) {
       return null;
     }
@@ -447,6 +489,9 @@
   }
 
   function addCurrentToWatchLater() {
+    if (!isEnabled()) {
+      return false;
+    }
     const tile = getCurrentTile();
     if (!tile) {
       return false;
@@ -496,6 +541,9 @@
   }
 
   function markCurrentAsNotInterested() {
+    if (!isEnabled()) {
+      return false;
+    }
     const tile = getCurrentTile();
     if (!tile) {
       return false;
@@ -620,8 +668,10 @@
     return true;
   }
 
-  
-function maybeRequestExit() {
+  function maybeRequestExit() {
+    if (!isEnabled()) {
+      return;
+    }
     if (!coreUtils.shouldRequestExit(state.skipCount, state.settings.skipCloseThreshold)) {
       return;
     }
@@ -631,17 +681,17 @@ function maybeRequestExit() {
     state.exitRequested = true;
     try {
       chrome.runtime.sendMessage({ source: 'tube-flow', type: 'request-exit', reason: 'skip-threshold' }, () => {
-      if (chrome.runtime.lastError) {
-        console.warn(`${NAMESPACE} exit request failed`, chrome.runtime.lastError);
-        state.exitRequested = false;
-        emitStateUpdate('exit-request-failed');
-      }
-    });
-  } catch (error) {
-    console.error(`${NAMESPACE} exit request error`, error);
-    state.exitRequested = false;
-    emitStateUpdate('exit-request-error');
-  }
+        if (chrome.runtime.lastError) {
+          console.warn(`${NAMESPACE} exit request failed`, chrome.runtime.lastError);
+          state.exitRequested = false;
+          emitStateUpdate('exit-request-failed');
+        }
+      });
+    } catch (error) {
+      console.error(`${NAMESPACE} exit request error`, error);
+      state.exitRequested = false;
+      emitStateUpdate('exit-request-error');
+    }
   }
 
   function handleStorageChanged(changes, area) {
@@ -656,6 +706,7 @@ function maybeRequestExit() {
       }
     });
     if (updated) {
+      syncEnabledIndicators();
       syncRootFlags();
       scheduleApply('settings-change');
       log('settings updated', state.settings);
@@ -664,6 +715,7 @@ function maybeRequestExit() {
   }
 
   function handleNavigation() {
+    setHomeActive(isHomePage() && isEnabled());
     setReadyState(false);
     resetCursor();
     emitStateUpdate('navigate');
@@ -671,6 +723,12 @@ function maybeRequestExit() {
 
   function handleRuntimeMessage(message, sender, sendResponse) {
     if (!message || message.source !== 'tube-flow') {
+      return;
+    }
+    if (!isEnabled() && message.type !== 'options-updated') {
+      if (typeof sendResponse === 'function') {
+        sendResponse({ ok: false, disabled: true });
+      }
       return;
     }
     if (message.type === 'command-next') {
@@ -709,7 +767,8 @@ function maybeRequestExit() {
 
   async function init() {
     await loadSettings();
-    setHomeActive(isHomePage());
+    syncEnabledIndicators();
+    setHomeActive(isHomePage() && isEnabled());
     syncRootFlags();
     setReadyState(false);
     ensureRoot();
