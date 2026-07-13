@@ -108,10 +108,14 @@ html.tf-watch [data-tf-rec]:not(.tf-visible) {
   display: none !important;
 }
 
-/* 再生後のおすすめ（エンドスクリーン）とカードは常に抑制。
-   2 系統ある: (1) ビデオウォール .ytp-endscreen-content / .html5-endscreen、
-   (2) 自動再生の「次の動画」カード .ytp-autonav-endscreen-*（ボタンだけでなく
-   カウントダウンオーバーレイごと隠す）。 */
+/* 再生後・再生中に「プレイヤー上」に出るおすすめ（エンドスクリーン）とカードを抑制。
+   系統が複数ある:
+   (1) 現行の「モダン」全画面グリッド .ytp-fullscreen-grid / .ytp-modern-videowall-still
+       （2026 の実 DOM で実際に出るのはこれ。旧セレクタでは覆えていなかった）
+   (2) 旧ビデオウォール .ytp-endscreen-content / .html5-endscreen
+   (3) 自動再生の「次の動画」カード .ytp-autonav-endscreen-*（カウントダウンオーバーレイごと） */
+html.tf-watch .ytp-fullscreen-grid,
+html.tf-watch .ytp-modern-videowall-still,
 html.tf-watch .html5-endscreen,
 html.tf-watch .ytp-endscreen-content,
 html.tf-watch .ytp-autonav-endscreen,

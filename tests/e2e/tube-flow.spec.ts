@@ -136,10 +136,12 @@ test.describe('Tube Flow (built extension)', () => {
         return el ? getComputedStyle(el).display : 'missing';
       };
       return {
+        modernGrid: disp('.ytp-fullscreen-grid'),
         videowall: disp('.ytp-endscreen-content'),
         autonav: disp('.ytp-autonav-endscreen-countdown-overlay'),
       };
     });
+    expect(endscreenDisplays.modernGrid).toBe('none');
     expect(endscreenDisplays.videowall).toBe('none');
     expect(endscreenDisplays.autonav).toBe('none');
   });
