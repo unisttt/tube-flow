@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULTS, clampNumber, sanitizeSettings } from '../../lib/settings';
+import {
+  DEFAULTS,
+  clampNumber,
+  sanitizeSettings,
+  sanitizeWindows,
+  normalizeHHMM,
+} from '../../lib/settings';
 
 describe('clampNumber', () => {
   it('floors and clamps within range', () => {
@@ -37,5 +43,43 @@ describe('sanitizeSettings', () => {
 
   it('is defensive against non-object input', () => {
     expect(sanitizeSettings(null as never)).toEqual(DEFAULTS);
+  });
+
+  it('clamps dailyLimitMinutes and coerces restriction flags', () => {
+    expect(sanitizeSettings({ dailyLimitMinutes: 99999 as never }).dailyLimitMinutes).toBe(1440);
+    expect(sanitizeSettings({ dailyLimitMinutes: 1 as never }).dailyLimitMinutes).toBe(5);
+    expect(sanitizeSettings({ scheduleBlockEnabled: 1 as never }).scheduleBlockEnabled).toBe(true);
+  });
+});
+
+describe('normalizeHHMM', () => {
+  it('normalizes valid times and pads', () => {
+    expect(normalizeHHMM('9:05')).toBe('09:05');
+    expect(normalizeHHMM('23:59')).toBe('23:59');
+  });
+  it('rejects invalid times', () => {
+    expect(normalizeHHMM('24:00')).toBeNull();
+    expect(normalizeHHMM('12:60')).toBeNull();
+    expect(normalizeHHMM('nope')).toBeNull();
+    expect(normalizeHHMM(42 as never)).toBeNull();
+  });
+});
+
+describe('sanitizeWindows', () => {
+  it('keeps valid windows and drops invalid / zero-length ones', () => {
+    const result = sanitizeWindows([
+      { start: '22:00', end: '07:00' },
+      { start: '10:00', end: '10:00' }, // start===end → 除外
+      { start: 'bad', end: '09:00' }, // 不正 → 除外
+      { start: '9:0', end: '18:00' }, // start 不正(分1桁) → 除外
+    ]);
+    expect(result).toEqual([{ start: '22:00', end: '07:00' }]);
+  });
+  it('returns [] for non-array', () => {
+    expect(sanitizeWindows('x' as never)).toEqual([]);
+  });
+  it('caps at 12 windows', () => {
+    const many = Array.from({ length: 20 }, () => ({ start: '01:00', end: '02:00' }));
+    expect(sanitizeWindows(many)).toHaveLength(12);
   });
 });

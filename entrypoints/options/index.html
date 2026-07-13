@@ -60,6 +60,37 @@
         </div>
       </fieldset>
 
+      <fieldset>
+        <legend>利用制限</legend>
+
+        <div class="field">
+          <label for="scheduleBlockEnabled">
+            <input type="checkbox" id="scheduleBlockEnabled" name="scheduleBlockEnabled" />
+            時間帯ブロックを有効にする
+          </label>
+          <small>指定した時間帯は YouTube を遮断オーバーレイで使えなくします（毎日適用・日をまたぐ指定可）。</small>
+        </div>
+        <div class="field" id="windows-field">
+          <div id="windows" class="windows"></div>
+          <button type="button" id="add-window" class="secondary">＋ 時間帯を追加</button>
+        </div>
+
+        <div class="field">
+          <label for="dailyLimitEnabled">
+            <input type="checkbox" id="dailyLimitEnabled" name="dailyLimitEnabled" />
+            1 日の視聴時間上限を有効にする
+          </label>
+          <small>動画の再生中の時間が上限を超えたら遮断します。毎日 0 時にリセット。</small>
+        </div>
+        <div class="field">
+          <label for="dailyLimitMinutes">
+            上限（分）
+            <input type="number" id="dailyLimitMinutes" name="dailyLimitMinutes" min="5" max="1440" />
+          </label>
+          <small id="usage-readout"></small>
+        </div>
+      </fieldset>
+
       <div class="actions">
         <button type="submit">保存する</button>
         <button type="button" class="secondary" id="restore-defaults">既定に戻す</button>

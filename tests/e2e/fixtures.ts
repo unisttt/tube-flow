@@ -40,6 +40,34 @@ export const test = base.extend<{ context: BrowserContext; extensionId: string }
 
 export const expect = test.expect;
 
+/**
+ * 拡張ページの文脈で chrome.storage を直接セットする。
+ * sync に設定、local に今日の視聴秒数（seconds 指定時）を書き込む。
+ */
+export async function seedStorage(
+  context: BrowserContext,
+  extensionId: string,
+  sync: Record<string, unknown>,
+  seconds?: number,
+): Promise<void> {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/options.html`);
+  await page.evaluate(
+    async ({ sync, seconds }) => {
+      await chrome.storage.sync.set(sync);
+      if (typeof seconds === 'number') {
+        const d = new Date();
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+          d.getDate(),
+        ).padStart(2, '0')}`;
+        await chrome.storage.local.set({ 'tubeflow-usage': { date: key, seconds } });
+      }
+    },
+    { sync, seconds },
+  );
+  await page.close();
+}
+
 /** www.youtube.com へのリクエストをローカルの静的フィクスチャで応答する */
 export async function stubYouTube(context: BrowserContext): Promise<void> {
   const [homeHtml, watchHtml] = await Promise.all([

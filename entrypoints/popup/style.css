@@ -117,3 +117,13 @@ label.field span.label {
 #status[data-error='true'] {
   color: #dc2626;
 }
+hr.sep {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  margin: 2px 0;
+}
+.usage {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  min-height: 1.1em;
+}

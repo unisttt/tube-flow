@@ -97,3 +97,39 @@ dl.summary {
 dl.summary dt {
   font-weight: 600;
 }
+.windows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.window-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.window-row input[type='time'] {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
+.window-row .remove-window {
+  background: color-mix(in srgb, #dc2626 85%, transparent);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.window-row .sep {
+  opacity: 0.6;
+}
+#add-window {
+  align-self: flex-start;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.windows:empty::after {
+  content: '時間帯が未設定です（「＋ 時間帯を追加」で追加）';
+  font-size: 0.85rem;
+  opacity: 0.6;
+}

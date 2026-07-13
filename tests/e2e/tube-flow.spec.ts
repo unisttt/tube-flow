@@ -1,4 +1,4 @@
-import { test, expect, stubYouTube } from './fixtures';
+import { test, expect, stubYouTube, seedStorage } from './fixtures';
 
 test.describe('Tube Flow (built extension)', () => {
   test('home: shows only the first tile and hides the rest', async ({ context }) => {
@@ -227,5 +227,50 @@ test.describe('Tube Flow settings propagation', () => {
       () => document.querySelectorAll('[data-tf-rec].tf-hidden').length,
     );
     expect(hidden).toBe(3);
+  });
+});
+
+test.describe('Tube Flow 利用制限', () => {
+  test('schedule: an active time window shows the block overlay', async ({ context, extensionId }) => {
+    // 00:00–23:59 は（23:59 の 1 分を除き）常に有効 → いつ実行しても遮断される
+    await seedStorage(context, extensionId, {
+      scheduleBlockEnabled: true,
+      blockWindows: [{ start: '00:00', end: '23:59' }],
+    });
+    await stubYouTube(context);
+
+    const page = await context.newPage();
+    await page.goto('https://www.youtube.com/');
+    const overlay = page.locator('#tf-block-overlay');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    await expect(overlay).toHaveAttribute('data-reason', 'schedule');
+  });
+
+  test('daily-limit: exceeding the daily watch limit shows the block overlay', async ({
+    context,
+    extensionId,
+  }) => {
+    // 上限 5 分（最小値）、今日の視聴 600 秒 → 上限超過で遮断
+    await seedStorage(
+      context,
+      extensionId,
+      { dailyLimitEnabled: true, dailyLimitMinutes: 5 },
+      600,
+    );
+    await stubYouTube(context);
+
+    const page = await context.newPage();
+    await page.goto('https://www.youtube.com/watch?v=abc');
+    const overlay = page.locator('#tf-block-overlay');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    await expect(overlay).toHaveAttribute('data-reason', 'daily-limit');
+  });
+
+  test('no restriction: overlay is absent by default', async ({ context }) => {
+    await stubYouTube(context);
+    const page = await context.newPage();
+    await page.goto('https://www.youtube.com/');
+    await page.waitForSelector('html.tf-home.tf-ready');
+    await expect(page.locator('#tf-block-overlay')).toHaveCount(0);
   });
 });

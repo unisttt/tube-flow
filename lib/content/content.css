@@ -107,6 +107,50 @@ html.tf-watch .ytp-cards-button {
   opacity: 0 !important;
 }
 
+/* ===== 利用制限の遮断オーバーレイ ===== */
+
+#tf-block-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 8, 10, 0.97);
+  backdrop-filter: blur(8px);
+  font-family: 'Roboto', 'Noto Sans JP', system-ui, sans-serif;
+  color: #fff;
+  cursor: default;
+}
+#tf-block-overlay .tf-block-card {
+  max-width: 440px;
+  text-align: center;
+}
+#tf-block-overlay .tf-block-mark {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+#tf-block-overlay .tf-block-title {
+  margin: 0 0 12px;
+  font-size: 24px;
+  font-weight: 700;
+}
+#tf-block-overlay .tf-block-detail {
+  margin: 0 0 24px;
+  font-size: 15px;
+  line-height: 1.6;
+  opacity: 0.82;
+}
+#tf-block-overlay .tf-block-foot {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  opacity: 0.5;
+}
+
 /* ===== 右下ミニ UI ===== */
 
 .tf-controls {

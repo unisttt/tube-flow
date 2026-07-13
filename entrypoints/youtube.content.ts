@@ -12,6 +12,7 @@ import { isHomePage, isWatchPage, onNavigation } from '../lib/page';
 import { createHomeController } from '../lib/content/home';
 import { createWatchController } from '../lib/content/watch';
 import { mountControls, type Controls } from '../lib/content/controls';
+import { createBlocker } from '../lib/content/blocker';
 
 export default defineContentScript({
   matches: ['*://www.youtube.com/*'],
@@ -35,11 +36,14 @@ export default defineContentScript({
       },
     });
     const watch = createWatchController({ getSettings });
+    const blocker = createBlocker({ getSettings });
+    blocker.start();
 
     function applyAll(reason: string): void {
       home.apply(reason);
       watch.apply(reason);
       controls?.refresh();
+      blocker.refresh();
     }
 
     function ensureControls(): void {

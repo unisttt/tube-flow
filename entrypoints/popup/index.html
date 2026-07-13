@@ -47,6 +47,20 @@
           </span>
         </label>
 
+        <hr class="sep" />
+
+        <label class="toggle" for="scheduleBlockEnabled">
+          <input type="checkbox" id="scheduleBlockEnabled" name="scheduleBlockEnabled" />
+          <span>時間帯ブロック</span>
+        </label>
+
+        <label class="toggle" for="dailyLimitEnabled">
+          <input type="checkbox" id="dailyLimitEnabled" name="dailyLimitEnabled" />
+          <span>1 日の視聴時間上限</span>
+        </label>
+
+        <div id="usage" class="usage" aria-live="polite"></div>
+
         <div class="foot">
           <div id="status" aria-live="polite" role="status"></div>
           <button type="button" class="secondary" id="open-options">詳細設定</button>

@@ -2,25 +2,65 @@ import {
   readSettings,
   resetSettings,
   writeSettings,
+  sanitizeWindows,
   type Settings,
+  type TimeWindow,
 } from '../../lib/settings';
 import { notifyContentScripts } from '../../lib/messaging';
+import { USAGE_KEY, dayKey, normalizeRecord, formatMinutes } from '../../lib/usage';
 
 const form = document.getElementById('options-form') as HTMLFormElement;
 const status = document.getElementById('status') as HTMLElement;
 const summary = document.getElementById('summary') as HTMLElement;
+const windowsHost = document.getElementById('windows') as HTMLElement;
+const addWindowButton = document.getElementById('add-window') as HTMLButtonElement;
+const usageReadout = document.getElementById('usage-readout') as HTMLElement;
+
+// 時間帯ブロックの編集状態（保存時にこの配列を書き出す）
+let windows: TimeWindow[] = [];
 
 function field<T extends HTMLElement = HTMLInputElement>(name: string): T {
   return form.elements.namedItem(name) as T;
 }
 
+function renderWindows(): void {
+  windowsHost.innerHTML = '';
+  windows.forEach((win, index) => {
+    const row = document.createElement('div');
+    row.className = 'window-row';
+    row.innerHTML = `
+      <input type="time" class="win-start" value="${win.start}" aria-label="開始時刻" />
+      <span class="sep">〜</span>
+      <input type="time" class="win-end" value="${win.end}" aria-label="終了時刻" />
+      <button type="button" class="remove-window" aria-label="この時間帯を削除">削除</button>
+    `;
+    row.querySelector<HTMLInputElement>('.win-start')!.addEventListener('change', (e) => {
+      windows[index] = { ...windows[index]!, start: (e.target as HTMLInputElement).value };
+    });
+    row.querySelector<HTMLInputElement>('.win-end')!.addEventListener('change', (e) => {
+      windows[index] = { ...windows[index]!, end: (e.target as HTMLInputElement).value };
+    });
+    row.querySelector<HTMLButtonElement>('.remove-window')!.addEventListener('click', () => {
+      windows.splice(index, 1);
+      renderWindows();
+    });
+    windowsHost.appendChild(row);
+  });
+}
+
 function renderSummary(settings: Settings): void {
+  const schedule = settings.scheduleBlockEnabled
+    ? settings.blockWindows.map((w) => `${w.start}〜${w.end}`).join(', ') || '（時間帯なし）'
+    : '無効';
+  const dailyLimit = settings.dailyLimitEnabled ? `${settings.dailyLimitMinutes}分/日` : '無効';
   const entries: Array<[string, string | number]> = [
     ['機能', settings.enabled ? '有効' : '無効'],
     ['表示カード数', settings.visibleCount],
     ['おすすめ表示数', settings.watchVisibleCount],
     ['Shorts 非表示', settings.hideShorts ? '有効' : '無効'],
     ['連続スキップ回数', settings.skipCloseThreshold],
+    ['時間帯ブロック', schedule],
+    ['1日の視聴上限', dailyLimit],
   ];
   summary.innerHTML = entries
     .map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`)
@@ -33,7 +73,22 @@ function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
   field<HTMLInputElement>('hideShorts').checked = settings.hideShorts;
   field<HTMLInputElement>('skipCloseThreshold').value = String(settings.skipCloseThreshold);
+  field<HTMLInputElement>('scheduleBlockEnabled').checked = settings.scheduleBlockEnabled;
+  field<HTMLInputElement>('dailyLimitEnabled').checked = settings.dailyLimitEnabled;
+  field<HTMLInputElement>('dailyLimitMinutes').value = String(settings.dailyLimitMinutes);
+  windows = settings.blockWindows.map((w) => ({ ...w }));
+  renderWindows();
   renderSummary(settings);
+}
+
+async function renderUsage(): Promise<void> {
+  try {
+    const stored = await chrome.storage.local.get(USAGE_KEY);
+    const record = normalizeRecord(stored[USAGE_KEY], dayKey(new Date()));
+    usageReadout.textContent = `本日の視聴: ${formatMinutes(record.seconds)}`;
+  } catch {
+    usageReadout.textContent = '';
+  }
 }
 
 function showStatus(message: string, isError = false): void {
@@ -54,6 +109,7 @@ function showStatus(message: string, isError = false): void {
 async function loadSettings(): Promise<void> {
   try {
     applySettingsToForm(await readSettings());
+    await renderUsage();
   } catch (error) {
     console.warn('[TubeFlow][options] failed to load', error);
     showStatus('設定の読み込みに失敗しました', true);
@@ -68,6 +124,10 @@ async function handleSave(event: SubmitEvent): Promise<void> {
     watchVisibleCount: Number(field<HTMLInputElement>('watchVisibleCount').value),
     hideShorts: field<HTMLInputElement>('hideShorts').checked,
     skipCloseThreshold: Number(field<HTMLInputElement>('skipCloseThreshold').value),
+    scheduleBlockEnabled: field<HTMLInputElement>('scheduleBlockEnabled').checked,
+    blockWindows: sanitizeWindows(windows),
+    dailyLimitEnabled: field<HTMLInputElement>('dailyLimitEnabled').checked,
+    dailyLimitMinutes: Number(field<HTMLInputElement>('dailyLimitMinutes').value),
   };
   try {
     const settings = await writeSettings(raw);
@@ -96,6 +156,10 @@ async function handleRestoreDefaults(): Promise<void> {
 function init(): void {
   const restore = document.getElementById('restore-defaults') as HTMLButtonElement;
   restore.addEventListener('click', () => void handleRestoreDefaults());
+  addWindowButton.addEventListener('click', () => {
+    windows.push({ start: '00:00', end: '07:00' });
+    renderWindows();
+  });
   form.addEventListener('submit', (event) => void handleSave(event as SubmitEvent));
   void loadSettings();
 }

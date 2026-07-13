@@ -6,16 +6,19 @@ import {
   type Settings,
 } from '../../lib/settings';
 import { notifyContentScripts } from '../../lib/messaging';
+import { USAGE_KEY, dayKey, normalizeRecord, formatMinutes } from '../../lib/usage';
 
 const form = document.getElementById('popup-form') as HTMLFormElement;
 const status = document.getElementById('status') as HTMLElement;
 const stepButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.step'));
 const openOptionsButton = document.getElementById('open-options') as HTMLButtonElement;
 const restoreDefaultsButton = document.getElementById('restore-defaults') as HTMLButtonElement;
+const usageNode = document.getElementById('usage') as HTMLElement;
 
-type NumericField = keyof typeof LIMITS;
-const NUMERIC_FIELDS = Object.keys(LIMITS) as NumericField[];
-const BOOLEAN_FIELDS = ['enabled', 'hideShorts'] as const;
+// LIMITS のうちポップアップにステッパーがある数値フィールドだけを対象にする
+const NUMERIC_FIELDS = ['visibleCount', 'watchVisibleCount', 'skipCloseThreshold'] as const;
+type NumericField = (typeof NUMERIC_FIELDS)[number];
+const BOOLEAN_FIELDS = ['enabled', 'hideShorts', 'scheduleBlockEnabled', 'dailyLimitEnabled'] as const;
 
 function field<T extends HTMLElement = HTMLInputElement>(name: string): T {
   return form.elements.namedItem(name) as T;
@@ -42,7 +45,19 @@ function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('visibleCount').value = String(settings.visibleCount);
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
   field<HTMLInputElement>('skipCloseThreshold').value = String(settings.skipCloseThreshold);
+  field<HTMLInputElement>('scheduleBlockEnabled').checked = settings.scheduleBlockEnabled;
+  field<HTMLInputElement>('dailyLimitEnabled').checked = settings.dailyLimitEnabled;
   updateStepperDisabled();
+}
+
+async function renderUsage(): Promise<void> {
+  try {
+    const stored = await chrome.storage.local.get(USAGE_KEY);
+    const record = normalizeRecord(stored[USAGE_KEY], dayKey(new Date()));
+    usageNode.textContent = `本日の視聴: ${formatMinutes(record.seconds)}`;
+  } catch {
+    usageNode.textContent = '';
+  }
 }
 
 function updateStepperDisabled(): void {
@@ -139,6 +154,7 @@ function handleOpenOptions(): void {
 async function init(): Promise<void> {
   try {
     applySettingsToForm(await readSettings());
+    await renderUsage();
   } catch (error) {
     console.warn('[TubeFlow][popup] failed to load', error);
     showStatus('設定の読み込みに失敗しました', true);

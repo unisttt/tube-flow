@@ -1,6 +1,6 @@
 {
   "name": "tube-flow",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "YouTube のホーム/視聴ページで表示カードを制限し、集中をサポートする MV3 Chrome 拡張",
   "type": "module",
   "private": true,

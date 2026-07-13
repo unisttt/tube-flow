@@ -3,6 +3,12 @@
  * 旧 shared/settings.js を TypeScript 化し、境界値を型で担保する。
  */
 
+/** 「HH:MM」〜「HH:MM」の時間帯（毎日適用。start>end は日をまたぐ） */
+export interface TimeWindow {
+  start: string;
+  end: string;
+}
+
 export interface Settings {
   /** Tube Flow 全体の有効/無効 */
   enabled: boolean;
@@ -14,6 +20,16 @@ export interface Settings {
   hideShorts: boolean;
   /** Alt+J 連打を許容する回数（0 で監視無効） */
   skipCloseThreshold: number;
+
+  // ── 利用制限 ──
+  /** 時間帯ブロックを有効にするか */
+  scheduleBlockEnabled: boolean;
+  /** ブロックする時間帯（毎日適用） */
+  blockWindows: TimeWindow[];
+  /** 1 日の視聴時間上限を有効にするか */
+  dailyLimitEnabled: boolean;
+  /** 1 日の視聴時間上限（分。動画再生中の時間で計測） */
+  dailyLimitMinutes: number;
 }
 
 export const DEFAULTS: Settings = {
@@ -22,13 +38,56 @@ export const DEFAULTS: Settings = {
   watchVisibleCount: 0,
   hideShorts: true,
   skipCloseThreshold: 3,
+  scheduleBlockEnabled: false,
+  blockWindows: [],
+  dailyLimitEnabled: false,
+  dailyLimitMinutes: 60,
 };
 
 export const LIMITS = {
   visibleCount: { min: 0, max: 6 },
   watchVisibleCount: { min: 0, max: 20 },
   skipCloseThreshold: { min: 0, max: 10 },
+  dailyLimitMinutes: { min: 5, max: 1440 },
 } as const;
+
+const HHMM = /^(\d{1,2}):(\d{2})$/;
+
+/** 「HH:MM」文字列を正規化（不正なら null） */
+export function normalizeHHMM(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const m = HHMM.exec(value.trim());
+  if (!m) {
+    return null;
+  }
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) {
+    return null;
+  }
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+/** 時間帯配列を検証（start/end とも妥当・start≠end のものだけ残す。最大 12 件） */
+export function sanitizeWindows(raw: unknown): TimeWindow[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const result: TimeWindow[] = [];
+  for (const item of raw) {
+    const start = normalizeHHMM((item as TimeWindow)?.start);
+    const end = normalizeHHMM((item as TimeWindow)?.end);
+    if (start && end && start !== end) {
+      result.push({ start, end });
+    }
+    if (result.length >= 12) {
+      break;
+    }
+  }
+  return result;
+}
 
 export function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   const numeric = Number(value);
@@ -63,6 +122,15 @@ export function sanitizeSettings(raw: Partial<Record<keyof Settings, unknown>> =
       LIMITS.skipCloseThreshold.min,
       LIMITS.skipCloseThreshold.max,
       DEFAULTS.skipCloseThreshold,
+    ),
+    scheduleBlockEnabled: Boolean(raw.scheduleBlockEnabled ?? DEFAULTS.scheduleBlockEnabled),
+    blockWindows: sanitizeWindows(raw.blockWindows ?? DEFAULTS.blockWindows),
+    dailyLimitEnabled: Boolean(raw.dailyLimitEnabled ?? DEFAULTS.dailyLimitEnabled),
+    dailyLimitMinutes: clampNumber(
+      raw.dailyLimitMinutes,
+      LIMITS.dailyLimitMinutes.min,
+      LIMITS.dailyLimitMinutes.max,
+      DEFAULTS.dailyLimitMinutes,
     ),
   };
 }
