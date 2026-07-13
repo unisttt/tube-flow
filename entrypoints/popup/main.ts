@@ -16,7 +16,7 @@ const restoreDefaultsButton = document.getElementById('restore-defaults') as HTM
 const usageNode = document.getElementById('usage') as HTMLElement;
 
 // LIMITS のうちポップアップにステッパーがある数値フィールドだけを対象にする
-const NUMERIC_FIELDS = ['visibleCount', 'watchVisibleCount', 'skipCloseThreshold'] as const;
+const NUMERIC_FIELDS = ['visibleCount', 'cardWidth', 'watchVisibleCount', 'skipCloseThreshold'] as const;
 type NumericField = (typeof NUMERIC_FIELDS)[number];
 const BOOLEAN_FIELDS = ['enabled', 'hideShorts', 'scheduleBlockEnabled', 'dailyLimitEnabled'] as const;
 
@@ -43,6 +43,7 @@ function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('enabled').checked = settings.enabled;
   field<HTMLInputElement>('hideShorts').checked = settings.hideShorts;
   field<HTMLInputElement>('visibleCount').value = String(settings.visibleCount);
+  field<HTMLInputElement>('cardWidth').value = String(settings.cardWidth);
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
   field<HTMLInputElement>('skipCloseThreshold').value = String(settings.skipCloseThreshold);
   field<HTMLInputElement>('scheduleBlockEnabled').checked = settings.scheduleBlockEnabled;

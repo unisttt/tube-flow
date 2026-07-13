@@ -45,6 +45,12 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings(null as never)).toEqual(DEFAULTS);
   });
 
+  it('clamps cardWidth within range', () => {
+    expect(sanitizeSettings({ cardWidth: 99999 as never }).cardWidth).toBe(1280);
+    expect(sanitizeSettings({ cardWidth: 10 as never }).cardWidth).toBe(360);
+    expect(sanitizeSettings({}).cardWidth).toBe(720);
+  });
+
   it('clamps dailyLimitMinutes and coerces restriction flags', () => {
     expect(sanitizeSettings({ dailyLimitMinutes: 99999 as never }).dailyLimitMinutes).toBe(1440);
     expect(sanitizeSettings({ dailyLimitMinutes: 1 as never }).dailyLimitMinutes).toBe(5);

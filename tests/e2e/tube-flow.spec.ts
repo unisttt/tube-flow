@@ -177,6 +177,41 @@ test.describe('Tube Flow settings propagation', () => {
       .toBe(3);
   });
 
+  test('home: cardWidth sets the visible card size (CSS var + tile width)', async ({
+    context,
+    extensionId,
+  }) => {
+    await stubYouTube(context);
+
+    const optionsPage = await context.newPage();
+    await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
+    await optionsPage.fill('#cardWidth', '500');
+    await optionsPage.click('button[type="submit"]');
+    await optionsPage.waitForFunction(() =>
+      document.getElementById('status')?.textContent?.includes('保存'),
+    );
+    await optionsPage.close();
+
+    const page = await context.newPage();
+    await page.goto('https://www.youtube.com/');
+    await page.waitForSelector('html.tf-home.tf-ready');
+
+    // html に CSS 変数が反映される
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          getComputedStyle(document.documentElement).getPropertyValue('--tf-card-width').trim(),
+        ),
+      )
+      .toBe('500px');
+    // 表示中カードの実幅が設定値になる（コンテナ幅 > 500 の前提）
+    const width = await page.evaluate(() => {
+      const tile = document.querySelector('[data-tf-tile].tf-visible') as HTMLElement | null;
+      return tile ? getComputedStyle(tile).width : null;
+    });
+    expect(width).toBe('500px');
+  });
+
   test('home: reaching skipCloseThreshold closes the tab', async ({ context, extensionId }) => {
     await stubYouTube(context);
 

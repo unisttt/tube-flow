@@ -56,6 +56,7 @@ function renderSummary(settings: Settings): void {
   const entries: Array<[string, string | number]> = [
     ['機能', settings.enabled ? '有効' : '無効'],
     ['表示カード数', settings.visibleCount],
+    ['カードの幅', `${settings.cardWidth}px`],
     ['おすすめ表示数', settings.watchVisibleCount],
     ['Shorts 非表示', settings.hideShorts ? '有効' : '無効'],
     ['連続スキップ回数', settings.skipCloseThreshold],
@@ -70,6 +71,7 @@ function renderSummary(settings: Settings): void {
 function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('enabled').checked = settings.enabled;
   field<HTMLInputElement>('visibleCount').value = String(settings.visibleCount);
+  field<HTMLInputElement>('cardWidth').value = String(settings.cardWidth);
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
   field<HTMLInputElement>('hideShorts').checked = settings.hideShorts;
   field<HTMLInputElement>('skipCloseThreshold').value = String(settings.skipCloseThreshold);
@@ -121,6 +123,7 @@ async function handleSave(event: SubmitEvent): Promise<void> {
   const raw: Partial<Settings> = {
     enabled: field<HTMLInputElement>('enabled').checked,
     visibleCount: Number(field<HTMLInputElement>('visibleCount').value),
+    cardWidth: Number(field<HTMLInputElement>('cardWidth').value),
     watchVisibleCount: Number(field<HTMLInputElement>('watchVisibleCount').value),
     hideShorts: field<HTMLInputElement>('hideShorts').checked,
     skipCloseThreshold: Number(field<HTMLInputElement>('skipCloseThreshold').value),

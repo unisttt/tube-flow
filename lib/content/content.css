@@ -42,6 +42,14 @@ html.tf-home #contents.tf-managed-root {
   justify-content: center !important;
 }
 
+/* 表示中カードの大きさ（幅）。--tf-card-width は content script が設定に応じて付与。
+   100%（＝コンテナ幅）で頭打ちにするので、単体表示や狭い画面でもはみ出さない。
+   幅を変えるとサムネイル/文字も 16:9 のまま比例拡大される。 */
+html.tf-home #contents.tf-managed-root [data-tf-tile].tf-visible {
+  width: min(var(--tf-card-width, 720px), 100%) !important;
+  max-width: min(var(--tf-card-width, 720px), 100%) !important;
+}
+
 /* ===== 各カードの個別アクションボタン ===== */
 
 html.tf-home [data-tf-tile].tf-card {

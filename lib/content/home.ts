@@ -257,6 +257,7 @@ export function createHomeController(deps: HomeDeps): HomeController {
     clearTileDecorations(tiles);
     tiles = [];
     root?.classList.remove(ROOT_MANAGED_CLASS);
+    html().style.removeProperty('--tf-card-width');
     setFlag('tf-ready', false);
     toggleShorts(false);
   }
@@ -314,6 +315,8 @@ export function createHomeController(deps: HomeDeps): HomeController {
 
     // 管理下グリッドでは、タイル以外の直下要素（棚・セクション・continuation）も一括マスクする
     container.classList.add(ROOT_MANAGED_CLASS);
+    // カードの大きさ（幅）を CSS 変数で反映
+    html().style.setProperty('--tf-card-width', `${Math.max(0, Number(settings.cardWidth) || 0)}px`);
 
     tiles.forEach((tile, index) => {
       tile.setAttribute(TILE_ATTR, '1');

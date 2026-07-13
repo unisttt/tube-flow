@@ -41,6 +41,13 @@
           <small>動画再生ページのおすすめ欄に表示する最大件数。（0 でおすすめをすべて隠す）</small>
         </div>
         <div class="field">
+          <label for="cardWidth">
+            カードの幅（px）
+            <input type="number" id="cardWidth" name="cardWidth" min="360" max="1280" step="20" />
+          </label>
+          <small>中央寄せ表示するカードの大きさ。大きくすると 3 件などは折り返します。画面幅で頭打ち。</small>
+        </div>
+        <div class="field">
           <label for="hideShorts">
             <input type="checkbox" id="hideShorts" name="hideShorts" />
             Shorts を非表示にする

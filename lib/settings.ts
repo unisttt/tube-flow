@@ -18,6 +18,8 @@ export interface Settings {
   watchVisibleCount: number;
   /** ホームの Shorts 棚を隠すか */
   hideShorts: boolean;
+  /** 表示カード 1 枚の幅（px。中央寄せ表示の大きさ。コンテナ幅で頭打ち） */
+  cardWidth: number;
   /** Alt+J 連打を許容する回数（0 で監視無効） */
   skipCloseThreshold: number;
 
@@ -37,6 +39,7 @@ export const DEFAULTS: Settings = {
   visibleCount: 1,
   watchVisibleCount: 0,
   hideShorts: true,
+  cardWidth: 720,
   skipCloseThreshold: 3,
   scheduleBlockEnabled: false,
   blockWindows: [],
@@ -47,6 +50,7 @@ export const DEFAULTS: Settings = {
 export const LIMITS = {
   visibleCount: { min: 0, max: 6 },
   watchVisibleCount: { min: 0, max: 20 },
+  cardWidth: { min: 360, max: 1280 },
   skipCloseThreshold: { min: 0, max: 10 },
   dailyLimitMinutes: { min: 5, max: 1440 },
 } as const;
@@ -117,6 +121,12 @@ export function sanitizeSettings(raw: Partial<Record<keyof Settings, unknown>> =
       DEFAULTS.watchVisibleCount,
     ),
     hideShorts: Boolean(raw.hideShorts ?? DEFAULTS.hideShorts),
+    cardWidth: clampNumber(
+      raw.cardWidth,
+      LIMITS.cardWidth.min,
+      LIMITS.cardWidth.max,
+      DEFAULTS.cardWidth,
+    ),
     skipCloseThreshold: clampNumber(
       raw.skipCloseThreshold,
       LIMITS.skipCloseThreshold.min,
