@@ -35,6 +35,13 @@ html.tf-home #contents.tf-managed-root > *:not([data-tf-tile]) {
   display: none !important;
 }
 
+/* 表示中カードを中央寄せする（既定の左上詰めが見た目に微妙なため）。
+   ホームのグリッドは flex（既定 justify-content: flex-start）なので、
+   center へ上書きするだけでタイル幅を壊さず中央に寄る。 */
+html.tf-home #contents.tf-managed-root {
+  justify-content: center !important;
+}
+
 /* ===== 各カードの個別アクションボタン ===== */
 
 html.tf-home [data-tf-tile].tf-card {

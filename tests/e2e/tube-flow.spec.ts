@@ -26,6 +26,13 @@ test.describe('Tube Flow (built extension)', () => {
       return section ? getComputedStyle(section).display === 'none' : false;
     });
     expect(sectionHidden).toBe(true);
+
+    // 表示カードは中央寄せ（管理ルートに justify-content: center が効く）
+    const justify = await page.evaluate(() => {
+      const root = document.querySelector('#contents.tf-managed-root');
+      return root ? getComputedStyle(root).justifyContent : null;
+    });
+    expect(justify).toBe('center');
   });
 
   test('home: mini controls are mounted and "next" advances the cursor', async ({ context }) => {
