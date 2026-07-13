@@ -14,8 +14,9 @@
     "postinstall": "wxt prepare",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "playwright test --grep-invert @live",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:live": "playwright test --grep @live"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
