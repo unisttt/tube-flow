@@ -83,7 +83,12 @@ export function createUsageTracker(now: () => Date = () => new Date()): UsageTra
   chrome.storage.onChanged.addListener(onChanged);
 
   return {
-    seconds: () => current.seconds,
+    // 読み取り時にも日付ロールする。これがないと、日次上限で遮断中は動画が停止して
+    // add() が呼ばれず、日付が変わっても秒数が上限超のままでオーバーレイが解けない。
+    seconds: () => {
+      rollDateIfNeeded();
+      return current.seconds;
+    },
     add(seconds: number): void {
       rollDateIfNeeded();
       current = { ...current, seconds: current.seconds + Math.max(0, seconds) };

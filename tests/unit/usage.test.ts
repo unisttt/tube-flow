@@ -1,5 +1,19 @@
-import { describe, it, expect } from 'vitest';
-import { dayKey, normalizeRecord, formatMinutes } from '../../lib/usage';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { dayKey, normalizeRecord, formatMinutes, createUsageTracker } from '../../lib/usage';
+
+// createUsageTracker は chrome.storage を触るので最小スタブを用意
+const g = globalThis as unknown as { chrome?: unknown };
+beforeEach(() => {
+  g.chrome = {
+    storage: {
+      local: { get: async () => ({}), set: async () => {} },
+      onChanged: { addListener: () => {}, removeListener: () => {} },
+    },
+  };
+});
+afterEach(() => {
+  delete g.chrome;
+});
 
 describe('dayKey', () => {
   it('formats local date as YYYY-MM-DD', () => {
@@ -31,5 +45,26 @@ describe('formatMinutes', () => {
   it('formats an hour or more', () => {
     expect(formatMinutes(60 * 60)).toBe('1時間0分');
     expect(formatMinutes(61 * 60)).toBe('1時間1分');
+  });
+});
+
+describe('createUsageTracker', () => {
+  it('accumulates within a day', () => {
+    const tracker = createUsageTracker(() => new Date(2026, 6, 13, 10, 0));
+    tracker.add(30);
+    tracker.add(15);
+    expect(tracker.seconds()).toBe(45);
+    tracker.destroy();
+  });
+
+  it('resets to 0 on day change even when read (not just on add) — 深夜0時の解除', () => {
+    let now = new Date(2026, 6, 13, 23, 59);
+    const tracker = createUsageTracker(() => now);
+    tracker.add(9999);
+    expect(tracker.seconds()).toBe(9999);
+    // 日付が翌日に変わったら、add せず seconds() を読むだけで 0 に戻る
+    now = new Date(2026, 6, 14, 0, 0);
+    expect(tracker.seconds()).toBe(0);
+    tracker.destroy();
   });
 });
