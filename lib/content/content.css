@@ -108,14 +108,20 @@ html.tf-watch [data-tf-rec]:not(.tf-visible) {
   display: none !important;
 }
 
-/* エンドスクリーン/カードのおすすめは常に抑制 */
+/* 再生後のおすすめ（エンドスクリーン）とカードは常に抑制。
+   2 系統ある: (1) ビデオウォール .ytp-endscreen-content / .html5-endscreen、
+   (2) 自動再生の「次の動画」カード .ytp-autonav-endscreen-*（ボタンだけでなく
+   カウントダウンオーバーレイごと隠す）。 */
+html.tf-watch .html5-endscreen,
 html.tf-watch .ytp-endscreen-content,
+html.tf-watch .ytp-autonav-endscreen,
+html.tf-watch .ytp-autonav-endscreen-countdown-overlay,
+html.tf-watch .ytp-autonav-endscreen-upnext-button,
 html.tf-watch .ytp-ce-element,
 html.tf-watch .ytp-ce-video,
 html.tf-watch .ytp-ce-covering,
 html.tf-watch .ytp-ce-expanding-overlay,
 html.tf-watch .ytp-upnext,
-html.tf-watch .ytp-autonav-endscreen-upnext-button,
 html.tf-watch .ytp-cards-button {
   display: none !important;
   visibility: hidden !important;

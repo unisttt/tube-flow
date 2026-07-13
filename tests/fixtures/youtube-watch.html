@@ -19,7 +19,21 @@
     <ytd-app>
       <ytd-watch-flexy>
         <div id="primary">
-          <div id="player">プレイヤー</div>
+          <div id="player">
+            <div class="html5-video-player">
+              <video></video>
+              <!-- 再生後のおすすめ 2 系統を模す -->
+              <div class="html5-endscreen">
+                <div class="ytp-endscreen-content">
+                  <a class="ytp-videowall-still" href="/watch?v=x">おすすめ動画A</a>
+                  <a class="ytp-videowall-still" href="/watch?v=y">おすすめ動画B</a>
+                </div>
+              </div>
+              <div class="ytp-autonav-endscreen-countdown-overlay">
+                <a class="ytp-autonav-endscreen-upnext-button">次の動画</a>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="secondary">
           <div id="related">

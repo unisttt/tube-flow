@@ -128,6 +128,20 @@ test.describe('Tube Flow (built extension)', () => {
       return getComputedStyle(panel).display !== 'none';
     });
     expect(panelVisible).toBe(false);
+
+    // 再生後のおすすめ（エンドスクリーン）2 系統が両方とも非表示
+    const endscreenDisplays = await page.evaluate(() => {
+      const disp = (sel: string) => {
+        const el = document.querySelector(sel);
+        return el ? getComputedStyle(el).display : 'missing';
+      };
+      return {
+        videowall: disp('.ytp-endscreen-content'),
+        autonav: disp('.ytp-autonav-endscreen-countdown-overlay'),
+      };
+    });
+    expect(endscreenDisplays.videowall).toBe('none');
+    expect(endscreenDisplays.autonav).toBe('none');
   });
 });
 
