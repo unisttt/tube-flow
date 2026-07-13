@@ -7,7 +7,15 @@ import {
   type TimeWindow,
 } from '../../lib/settings';
 import { notifyContentScripts } from '../../lib/messaging';
-import { USAGE_KEY, dayKey, normalizeRecord, formatMinutes } from '../../lib/usage';
+import {
+  USAGE_KEY,
+  dayKey,
+  normalizeRecord,
+  formatMinutes,
+  totalSkips,
+  recentSkips,
+  skipChartSvg,
+} from '../../lib/usage';
 
 const form = document.getElementById('options-form') as HTMLFormElement;
 const status = document.getElementById('status') as HTMLElement;
@@ -15,6 +23,7 @@ const summary = document.getElementById('summary') as HTMLElement;
 const windowsHost = document.getElementById('windows') as HTMLElement;
 const addWindowButton = document.getElementById('add-window') as HTMLButtonElement;
 const usageReadout = document.getElementById('usage-readout') as HTMLElement;
+const usageChart = document.getElementById('usage-chart') as HTMLElement;
 
 // 時間帯ブロックの編集状態（保存時にこの配列を書き出す）
 let windows: TimeWindow[] = [];
@@ -83,11 +92,15 @@ function applySettingsToForm(settings: Settings): void {
 
 async function renderUsage(): Promise<void> {
   try {
-    const stored = await chrome.storage.local.get(USAGE_KEY);
-    const record = normalizeRecord(stored[USAGE_KEY], dayKey(new Date()));
-    usageReadout.textContent = `本日の視聴: ${formatMinutes(record.seconds)}／「次へ」: ${record.skips}回`;
+    const today = dayKey(new Date());
+    const record = normalizeRecord((await chrome.storage.local.get(USAGE_KEY))[USAGE_KEY], today);
+    const total = totalSkips(record);
+    const todayCount = record.skipHistory[today] ?? 0;
+    usageReadout.textContent = `本日の視聴: ${formatMinutes(record.seconds)}／「次へ」累計 ${total} 回（本日 ${todayCount} 回）`;
+    usageChart.innerHTML = total > 0 ? skipChartSvg(recentSkips(record, today, 14)) : '';
   } catch {
     usageReadout.textContent = '';
+    usageChart.innerHTML = '';
   }
 }
 

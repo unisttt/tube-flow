@@ -124,6 +124,25 @@ hr.sep {
 }
 .usage {
   font-size: 0.85rem;
-  opacity: 0.75;
   min-height: 1.1em;
+}
+.usage .usage-line {
+  opacity: 0.75;
+}
+.usage .usage-line strong {
+  opacity: 1;
+}
+.usage-chart {
+  margin-top: 6px;
+}
+.tf-skipchart {
+  display: block;
+  width: 100%;
+  height: 40px;
+}
+.tf-skipchart .tf-bar {
+  fill: color-mix(in srgb, CanvasText 32%, transparent);
+}
+.tf-skipchart .tf-bar-today {
+  fill: #e5484d;
 }

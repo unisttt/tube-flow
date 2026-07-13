@@ -1,14 +1,21 @@
 /**
  * 右下ミニ UI。ホーム表示中のみ現れ、「次へ」を押せる。
- * 回数制限は無く、押した回数（本日）をバッジで可視化する。
+ * 回数制限は無く、押した回数＝依存度として累計をバッジで可視化する
+ * （日別の推移グラフはポップアップ/オプションに表示）。
  */
 import type { HomeSnapshot } from './home';
+
+/** 「次へ」の回数（本日 / 累計） */
+export interface SkipStats {
+  today: number;
+  total: number;
+}
 
 export interface ControlsActions {
   next(): void;
   getSnapshot(): HomeSnapshot;
-  /** 本日の「次へ」押下回数 */
-  getSkips(): number;
+  /** 「次へ」押下回数（本日ぶん・累計） */
+  getSkipStats(): SkipStats;
 }
 
 export interface Controls {
@@ -52,12 +59,13 @@ export function mountControls(actions: ControlsActions): Controls {
     if (!countNode) {
       return;
     }
-    const skips = actions.getSkips();
-    if (skips > 0) {
-      countNode.textContent = `本日${skips}回`;
+    const { today, total } = actions.getSkipStats();
+    if (total > 0) {
+      // 累計＝依存度を常時表示。色は「今日の押しすぎ」を今日ぶんで警告する。
+      countNode.textContent = `累計${total}回`;
+      countNode.title = `累計${total}回・本日${today}回`;
       countNode.style.display = 'inline';
-      // 回数が増えるほど目立たせる（注意喚起）
-      countNode.dataset.level = skips >= 20 ? 'high' : skips >= 10 ? 'mid' : 'low';
+      countNode.dataset.level = today >= 20 ? 'high' : today >= 10 ? 'mid' : 'low';
     } else {
       countNode.textContent = '';
       countNode.style.display = 'none';

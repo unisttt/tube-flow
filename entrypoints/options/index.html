@@ -9,7 +9,7 @@
   <body>
     <h1>Tube Flow 設定</h1>
     <p class="description">
-      YouTube ホームでの表示件数や Shorts 抑制、動画再生ページのおすすめ表示数、連続スキップ閾値を変更できます。
+      YouTube ホームでの表示件数や Shorts 抑制、動画再生ページのおすすめ表示数、利用制限を変更できます。「次へ」を押した回数（＝依存度）は日別グラフで確認できます。
     </p>
 
     <form id="options-form">
@@ -84,6 +84,7 @@
             <input type="number" id="dailyLimitMinutes" name="dailyLimitMinutes" min="5" max="1440" />
           </label>
           <small id="usage-readout"></small>
+          <div id="usage-chart" class="usage-chart"></div>
         </div>
       </fieldset>
 

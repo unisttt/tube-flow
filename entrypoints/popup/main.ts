@@ -6,7 +6,15 @@ import {
   type Settings,
 } from '../../lib/settings';
 import { notifyContentScripts } from '../../lib/messaging';
-import { USAGE_KEY, dayKey, normalizeRecord, formatMinutes } from '../../lib/usage';
+import {
+  USAGE_KEY,
+  dayKey,
+  normalizeRecord,
+  formatMinutes,
+  totalSkips,
+  recentSkips,
+  skipChartSvg,
+} from '../../lib/usage';
 
 const form = document.getElementById('popup-form') as HTMLFormElement;
 const status = document.getElementById('status') as HTMLElement;
@@ -52,9 +60,16 @@ function applySettingsToForm(settings: Settings): void {
 
 async function renderUsage(): Promise<void> {
   try {
-    const stored = await chrome.storage.local.get(USAGE_KEY);
-    const record = normalizeRecord(stored[USAGE_KEY], dayKey(new Date()));
-    usageNode.textContent = `本日の視聴: ${formatMinutes(record.seconds)}　「次へ」: ${record.skips}回`;
+    const today = dayKey(new Date());
+    const record = normalizeRecord((await chrome.storage.local.get(USAGE_KEY))[USAGE_KEY], today);
+    const total = totalSkips(record);
+    const todayCount = record.skipHistory[today] ?? 0;
+    const chart = total > 0 ? skipChartSvg(recentSkips(record, today, 7)) : '';
+    usageNode.innerHTML = `
+      <div class="usage-line">本日の視聴: ${formatMinutes(record.seconds)}</div>
+      <div class="usage-line">「次へ」累計 <strong>${total}</strong> 回（本日 ${todayCount} 回）</div>
+      ${chart ? `<div class="usage-chart" title="直近7日の「次へ」回数">${chart}</div>` : ''}
+    `;
   } catch {
     usageNode.textContent = '';
   }

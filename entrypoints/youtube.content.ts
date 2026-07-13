@@ -58,7 +58,7 @@ export default defineContentScript({
       controls = mountControls({
         next: () => home.next(),
         getSnapshot: () => home.getSnapshot(),
-        getSkips: () => usage.skips(),
+        getSkipStats: () => ({ today: usage.skips(), total: usage.totalSkips() }),
       });
     }
 

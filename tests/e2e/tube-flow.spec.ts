@@ -228,7 +228,10 @@ test.describe('Tube Flow settings propagation', () => {
     expect(width).toBe('500px');
   });
 
-  test('home: "次へ" is unlimited and shows today\'s skip count badge', async ({ context }) => {
+  test('home: "次へ" is unlimited and shows the cumulative skip count badge', async ({
+    context,
+    extensionId,
+  }) => {
     await stubYouTube(context);
     const page = await context.newPage();
     await page.goto('https://www.youtube.com/');
@@ -237,17 +240,24 @@ test.describe('Tube Flow settings propagation', () => {
     const nextBtn = page.locator('.tf-controls button[data-action="next"]');
     const badge = page.locator('.tf-controls [data-role="skip-count"]');
 
-    // 何度でも押せる（無効化されない）。押した回数がバッジに出る
+    // 何度でも押せる（無効化されない）。押した累計回数がバッジに出る
     for (let i = 0; i < 5; i++) {
       await nextBtn.click();
     }
     await expect(nextBtn).toBeEnabled();
-    await expect(badge).toHaveText('本日5回');
+    await expect(badge).toHaveText('累計5回');
 
     // 再読み込みしても回数が残る（storage.local に永続化。これが要件の肝）
     await page.reload();
     await page.waitForSelector('html.tf-home.tf-ready');
-    await expect(page.locator('.tf-controls [data-role="skip-count"]')).toHaveText('本日5回');
+    await expect(page.locator('.tf-controls [data-role="skip-count"]')).toHaveText('累計5回');
+
+    // ポップアップに日別グラフ（棒）と累計/本日が出ること
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await expect(popup.locator('#usage')).toContainText('累計 5 回');
+    await expect(popup.locator('#usage .tf-skipchart rect')).toHaveCount(7);
+    await popup.close();
   });
 
   test('watch: watchVisibleCount = 2 reveals exactly 2 nested recommendations', async ({

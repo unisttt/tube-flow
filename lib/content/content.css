@@ -215,7 +215,7 @@ html.tf-home.tf-ready .tf-controls[data-visible='true'] {
   background: rgba(255, 255, 255, 0.22);
 }
 
-/* 本日の「次へ」回数バッジ。回数が増えるほど目立たせて注意を促す */
+/* 「次へ」累計回数バッジ（＝依存度）。本日の回数が多いほど色で警告する */
 .tf-controls .tf-meta {
   font-size: 11px;
   font-weight: 700;

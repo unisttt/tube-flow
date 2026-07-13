@@ -133,3 +133,22 @@ dl.summary dt {
   font-size: 0.85rem;
   opacity: 0.6;
 }
+
+/* 「次へ」回数の日別グラフ（依存度の推移） */
+#usage-chart.usage-chart {
+  margin-top: 8px;
+}
+#usage-chart:empty {
+  display: none;
+}
+.tf-skipchart {
+  display: block;
+  width: 100%;
+  height: 52px;
+}
+.tf-skipchart .tf-bar {
+  fill: color-mix(in srgb, CanvasText 30%, transparent);
+}
+.tf-skipchart .tf-bar-today {
+  fill: #e5484d;
+}
