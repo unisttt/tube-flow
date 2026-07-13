@@ -29,11 +29,11 @@ describe('sanitizeSettings', () => {
     const result = sanitizeSettings({
       visibleCount: 999,
       watchVisibleCount: -5,
-      skipCloseThreshold: 100,
+      cardWidth: 99999,
     });
     expect(result.visibleCount).toBe(6);
     expect(result.watchVisibleCount).toBe(0);
-    expect(result.skipCloseThreshold).toBe(10);
+    expect(result.cardWidth).toBe(1280);
   });
 
   it('coerces boolean fields', () => {

@@ -59,7 +59,6 @@ function renderSummary(settings: Settings): void {
     ['カードの幅', `${settings.cardWidth}px`],
     ['おすすめ表示数', settings.watchVisibleCount],
     ['Shorts 非表示', settings.hideShorts ? '有効' : '無効'],
-    ['連続スキップ回数', settings.skipCloseThreshold],
     ['時間帯ブロック', schedule],
     ['1日の視聴上限', dailyLimit],
   ];
@@ -74,7 +73,6 @@ function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('cardWidth').value = String(settings.cardWidth);
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
   field<HTMLInputElement>('hideShorts').checked = settings.hideShorts;
-  field<HTMLInputElement>('skipCloseThreshold').value = String(settings.skipCloseThreshold);
   field<HTMLInputElement>('scheduleBlockEnabled').checked = settings.scheduleBlockEnabled;
   field<HTMLInputElement>('dailyLimitEnabled').checked = settings.dailyLimitEnabled;
   field<HTMLInputElement>('dailyLimitMinutes').value = String(settings.dailyLimitMinutes);
@@ -87,7 +85,7 @@ async function renderUsage(): Promise<void> {
   try {
     const stored = await chrome.storage.local.get(USAGE_KEY);
     const record = normalizeRecord(stored[USAGE_KEY], dayKey(new Date()));
-    usageReadout.textContent = `本日の視聴: ${formatMinutes(record.seconds)}`;
+    usageReadout.textContent = `本日の視聴: ${formatMinutes(record.seconds)}／「次へ」: ${record.skips}回`;
   } catch {
     usageReadout.textContent = '';
   }
@@ -126,7 +124,6 @@ async function handleSave(event: SubmitEvent): Promise<void> {
     cardWidth: Number(field<HTMLInputElement>('cardWidth').value),
     watchVisibleCount: Number(field<HTMLInputElement>('watchVisibleCount').value),
     hideShorts: field<HTMLInputElement>('hideShorts').checked,
-    skipCloseThreshold: Number(field<HTMLInputElement>('skipCloseThreshold').value),
     scheduleBlockEnabled: field<HTMLInputElement>('scheduleBlockEnabled').checked,
     blockWindows: sanitizeWindows(windows),
     dailyLimitEnabled: field<HTMLInputElement>('dailyLimitEnabled').checked,

@@ -11,6 +11,8 @@ export interface UsageRecord {
   date: string;
   /** その日の視聴秒数 */
   seconds: number;
+  /** その日に「次へ」を押した回数 */
+  skips: number;
 }
 
 export function dayKey(date: Date): string {
@@ -24,16 +26,21 @@ export function dayKey(date: Date): string {
 export function normalizeRecord(raw: unknown, today: string): UsageRecord {
   const rec = raw as Partial<UsageRecord> | undefined;
   if (!rec || rec.date !== today || typeof rec.seconds !== 'number' || rec.seconds < 0) {
-    return { date: today, seconds: 0 };
+    return { date: today, seconds: 0, skips: 0 };
   }
-  return { date: today, seconds: Math.floor(rec.seconds) };
+  const skips = typeof rec.skips === 'number' && rec.skips >= 0 ? Math.floor(rec.skips) : 0;
+  return { date: today, seconds: Math.floor(rec.seconds), skips };
 }
 
 export interface UsageTracker {
   /** 今日の視聴秒数（メモリ上の最新値） */
   seconds(): number;
+  /** 今日の「次へ」押下回数 */
+  skips(): number;
   /** n 秒加算（メモリ加算し、必要に応じて flush） */
   add(seconds: number): void;
+  /** 「次へ」押下を 1 回加算 */
+  addSkip(): void;
   /** ストレージから読み込んでメモリを初期化 */
   load(): Promise<number>;
   /** メモリ値を即ストレージへ書き出す */
@@ -42,13 +49,13 @@ export interface UsageTracker {
 }
 
 export function createUsageTracker(now: () => Date = () => new Date()): UsageTracker {
-  let current: UsageRecord = { date: dayKey(now()), seconds: 0 };
+  let current: UsageRecord = { date: dayKey(now()), seconds: 0, skips: 0 };
   let dirty = false;
 
   function rollDateIfNeeded(): void {
     const today = dayKey(now());
     if (current.date !== today) {
-      current = { date: today, seconds: 0 };
+      current = { date: today, seconds: 0, skips: 0 };
       dirty = true;
     }
   }
@@ -74,9 +81,13 @@ export function createUsageTracker(now: () => Date = () => new Date()): UsageTra
       return;
     }
     const incoming = normalizeRecord(changes[USAGE_KEY].newValue, dayKey(now()));
-    // 他タブの計測を取り込む（同日なら大きい方を採用）
-    if (incoming.date === current.date && incoming.seconds > current.seconds) {
-      current = incoming;
+    // 他タブの計測を取り込む（同日ならフィールドごとに大きい方を採用）
+    if (incoming.date === current.date) {
+      current = {
+        date: current.date,
+        seconds: Math.max(current.seconds, incoming.seconds),
+        skips: Math.max(current.skips, incoming.skips),
+      };
     }
   };
 
@@ -89,9 +100,18 @@ export function createUsageTracker(now: () => Date = () => new Date()): UsageTra
       rollDateIfNeeded();
       return current.seconds;
     },
+    skips: () => {
+      rollDateIfNeeded();
+      return current.skips;
+    },
     add(seconds: number): void {
       rollDateIfNeeded();
       current = { ...current, seconds: current.seconds + Math.max(0, seconds) };
+      dirty = true;
+    },
+    addSkip(): void {
+      rollDateIfNeeded();
+      current = { ...current, skips: current.skips + 1 };
       dirty = true;
     },
     async load(): Promise<number> {
@@ -101,7 +121,7 @@ export function createUsageTracker(now: () => Date = () => new Date()): UsageTra
         current = normalizeRecord(stored[USAGE_KEY], today);
       } catch (error) {
         console.warn('[TubeFlow][usage] load failed', error);
-        current = { date: today, seconds: 0 };
+        current = { date: today, seconds: 0, skips: 0 };
       }
       return current.seconds;
     },

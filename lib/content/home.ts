@@ -3,7 +3,7 @@
  * リッチグリッドを監視し、カーソル起点で先頭 N 件だけ表示する。
  */
 import type { Settings } from '../settings';
-import { clampCursor, computeVisibleBounds, shouldRequestExit } from '../cursor';
+import { clampCursor, computeVisibleBounds } from '../cursor';
 import { isHomePage } from '../page';
 import * as sel from '../adapters';
 import { queryFirst } from '../adapters';
@@ -17,11 +17,6 @@ const ACTIONS_CLASS = 'tf-card-actions';
 export interface HomeSnapshot {
   isHome: boolean;
   enabled: boolean;
-  threshold: number;
-  remainingSkips: number | null;
-  exitRequested: boolean;
-  /** スキップ上限に達し、これ以上「次へ」できない状態か */
-  atSkipLimit: boolean;
 }
 
 export interface HomeController {
@@ -38,13 +33,12 @@ export interface HomeController {
 interface HomeDeps {
   getSettings: () => Settings;
   onState: () => void;
-  requestExit: (reason: string) => void;
+  /** 「次へ」を押した（＝スキップ 1 回）ときに呼ばれる。回数記録用 */
+  onSkip: () => void;
 }
 
 export function createHomeController(deps: HomeDeps): HomeController {
   let cursorIndex = 0;
-  let skipCount = 0;
-  let exitRequested = false;
   let tiles: Element[] = [];
   let root: Element | null = null;
   let observer: MutationObserver | null = null;
@@ -58,23 +52,11 @@ export function createHomeController(deps: HomeDeps): HomeController {
     html().classList.toggle(name, on);
   }
 
-  /** スキップ上限に達しているか（threshold 0 は監視無効なので常に false） */
-  function atSkipLimit(): boolean {
-    const threshold = Math.max(0, Number(deps.getSettings().skipCloseThreshold) || 0);
-    return threshold > 0 && skipCount >= threshold;
-  }
-
   function snapshot(): HomeSnapshot {
     const settings = deps.getSettings();
-    const threshold = Math.max(0, Number(settings.skipCloseThreshold) || 0);
-    const remainingSkips = threshold ? Math.max(0, threshold - skipCount) : null;
     return {
       isHome: isHomePage(),
       enabled: settings.enabled,
-      threshold,
-      remainingSkips,
-      exitRequested,
-      atSkipLimit: atSkipLimit(),
     };
   }
 
@@ -346,49 +328,23 @@ export function createHomeController(deps: HomeDeps): HomeController {
     return tiles[index] ?? null;
   }
 
-  function maybeRequestExit(): void {
-    if (!enabled()) {
-      return;
-    }
-    if (!shouldRequestExit(skipCount, deps.getSettings().skipCloseThreshold)) {
-      return;
-    }
-    if (exitRequested) {
-      return;
-    }
-    exitRequested = true;
-    deps.requestExit('skip-threshold');
-  }
-
-  /** 「次へ」= 表示枚数ぶん送る。押下ごとにスキップ回数は 1 増える。 */
+  /**
+   * 「次へ」= 表示枚数ぶん送る。回数無制限。押下ごとに onSkip で回数を記録する。
+   * ホーム以外（/watch・検索など）では何もしない（Alt+J はアクティブタブに届くため）。
+   */
   function next(): void {
-    if (!enabled()) {
-      return;
-    }
-    // ホーム以外（/watch や検索結果など）では何もしない。
-    // Alt+J はアクティブタブに届くため、ここを守らないとカードの無いページで
-    // スキップ回数が増え、閾値到達でタブが閉じられてしまう。
-    if (!isHomePage()) {
-      return;
-    }
-    // スキップ上限に達していたら、それ以上は進めない（退出要求だけ担保する）
-    if (atSkipLimit()) {
-      maybeRequestExit();
-      emit();
+    if (!enabled() || !isHomePage()) {
       return;
     }
     const step = Math.max(1, effectiveVisibleCount());
     cursorIndex += step;
-    skipCount += 1;
     scheduleApply('cursor-change');
-    maybeRequestExit();
+    deps.onSkip();
     emit();
   }
 
   function resetCursor(): void {
     cursorIndex = 0;
-    skipCount = 0;
-    exitRequested = false;
     scheduleApply('cursor-reset');
     emit();
   }

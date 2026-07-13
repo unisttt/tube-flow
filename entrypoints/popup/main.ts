@@ -16,7 +16,7 @@ const restoreDefaultsButton = document.getElementById('restore-defaults') as HTM
 const usageNode = document.getElementById('usage') as HTMLElement;
 
 // LIMITS のうちポップアップにステッパーがある数値フィールドだけを対象にする
-const NUMERIC_FIELDS = ['visibleCount', 'cardWidth', 'watchVisibleCount', 'skipCloseThreshold'] as const;
+const NUMERIC_FIELDS = ['visibleCount', 'cardWidth', 'watchVisibleCount'] as const;
 type NumericField = (typeof NUMERIC_FIELDS)[number];
 const BOOLEAN_FIELDS = ['enabled', 'hideShorts', 'scheduleBlockEnabled', 'dailyLimitEnabled'] as const;
 
@@ -45,7 +45,6 @@ function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('visibleCount').value = String(settings.visibleCount);
   field<HTMLInputElement>('cardWidth').value = String(settings.cardWidth);
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
-  field<HTMLInputElement>('skipCloseThreshold').value = String(settings.skipCloseThreshold);
   field<HTMLInputElement>('scheduleBlockEnabled').checked = settings.scheduleBlockEnabled;
   field<HTMLInputElement>('dailyLimitEnabled').checked = settings.dailyLimitEnabled;
   updateStepperDisabled();
@@ -55,7 +54,7 @@ async function renderUsage(): Promise<void> {
   try {
     const stored = await chrome.storage.local.get(USAGE_KEY);
     const record = normalizeRecord(stored[USAGE_KEY], dayKey(new Date()));
-    usageNode.textContent = `本日の視聴: ${formatMinutes(record.seconds)}`;
+    usageNode.textContent = `本日の視聴: ${formatMinutes(record.seconds)}　「次へ」: ${record.skips}回`;
   } catch {
     usageNode.textContent = '';
   }

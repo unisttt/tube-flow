@@ -24,15 +24,30 @@ describe('dayKey', () => {
 
 describe('normalizeRecord', () => {
   const today = '2026-07-13';
-  it('keeps same-day seconds (floored)', () => {
-    expect(normalizeRecord({ date: today, seconds: 90.9 }, today)).toEqual({ date: today, seconds: 90 });
+  it('keeps same-day seconds and skips (floored)', () => {
+    expect(normalizeRecord({ date: today, seconds: 90.9, skips: 4.7 }, today)).toEqual({
+      date: today,
+      seconds: 90,
+      skips: 4,
+    });
   });
   it('resets when the date differs', () => {
-    expect(normalizeRecord({ date: '2026-07-12', seconds: 999 }, today)).toEqual({ date: today, seconds: 0 });
+    expect(normalizeRecord({ date: '2026-07-12', seconds: 999, skips: 9 }, today)).toEqual({
+      date: today,
+      seconds: 0,
+      skips: 0,
+    });
   });
   it('resets on missing/invalid input', () => {
-    expect(normalizeRecord(undefined, today)).toEqual({ date: today, seconds: 0 });
-    expect(normalizeRecord({ date: today, seconds: -5 }, today)).toEqual({ date: today, seconds: 0 });
+    expect(normalizeRecord(undefined, today)).toEqual({ date: today, seconds: 0, skips: 0 });
+    expect(normalizeRecord({ date: today, seconds: -5 }, today)).toEqual({
+      date: today,
+      seconds: 0,
+      skips: 0,
+    });
+  });
+  it('defaults skips to 0 when missing on a valid record', () => {
+    expect(normalizeRecord({ date: today, seconds: 30 }, today).skips).toBe(0);
   });
 });
 
@@ -49,11 +64,15 @@ describe('formatMinutes', () => {
 });
 
 describe('createUsageTracker', () => {
-  it('accumulates within a day', () => {
+  it('accumulates seconds and skips within a day', () => {
     const tracker = createUsageTracker(() => new Date(2026, 6, 13, 10, 0));
     tracker.add(30);
     tracker.add(15);
+    tracker.addSkip();
+    tracker.addSkip();
+    tracker.addSkip();
     expect(tracker.seconds()).toBe(45);
+    expect(tracker.skips()).toBe(3);
     tracker.destroy();
   });
 

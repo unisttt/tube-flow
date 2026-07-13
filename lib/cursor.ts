@@ -26,13 +26,3 @@ export function computeVisibleBounds(cursorIndex: number, visibleCount: number):
   const count = Math.max(0, Number(visibleCount) || 0);
   return { start: cursor, end: cursor + count };
 }
-
-/** 連続スキップ数が閾値に達したか。閾値 0 は監視無効 */
-export function shouldRequestExit(skipCount: number, threshold: number): boolean {
-  const count = Math.max(0, Number(skipCount) || 0);
-  const limit = Math.max(0, Number(threshold) || 0);
-  if (!limit) {
-    return false;
-  }
-  return count >= limit;
-}

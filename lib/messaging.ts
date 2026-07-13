@@ -11,10 +11,7 @@ export type CommandType = 'command-next' | 'command-watch-later' | 'command-not-
 /** popup/options → content: 設定変更の即時反映 */
 export type NotifyType = 'options-updated';
 
-/** content → background: 閾値到達でタブを閉じる要求 */
-export type ExitType = 'request-exit';
-
-export type MessageType = CommandType | NotifyType | ExitType;
+export type MessageType = CommandType | NotifyType;
 
 export interface TubeFlowMessage {
   source: typeof SOURCE;

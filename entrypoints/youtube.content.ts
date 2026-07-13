@@ -3,7 +3,6 @@ import '../lib/content/content.css';
 
 import { DEFAULTS, readSettings, watchSettings, type Settings } from '../lib/settings';
 import {
-  SOURCE,
   isTubeFlowMessage,
   type CommandResponse,
   type TubeFlowMessage,
@@ -13,6 +12,7 @@ import { createHomeController } from '../lib/content/home';
 import { createWatchController } from '../lib/content/watch';
 import { mountControls, type Controls } from '../lib/content/controls';
 import { createBlocker } from '../lib/content/blocker';
+import { createUsageTracker } from '../lib/usage';
 
 export default defineContentScript({
   matches: ['*://www.youtube.com/*'],
@@ -28,15 +28,20 @@ export default defineContentScript({
 
     let controls: Controls | null = null;
 
+    // 視聴秒数・「次へ」回数を保持する使用量トラッカー（storage.local, 日次リセット）
+    const usage = createUsageTracker();
+
     const home = createHomeController({
       getSettings,
       onState: () => controls?.refresh(),
-      requestExit: (reason) => {
-        void chrome.runtime.sendMessage({ source: SOURCE, type: 'request-exit', reason });
+      onSkip: () => {
+        usage.addSkip();
+        void usage.flush();
+        controls?.refresh();
       },
     });
     const watch = createWatchController({ getSettings });
-    const blocker = createBlocker({ getSettings });
+    const blocker = createBlocker({ getSettings, usage });
     blocker.start();
 
     function applyAll(reason: string): void {
@@ -53,8 +58,15 @@ export default defineContentScript({
       controls = mountControls({
         next: () => home.next(),
         getSnapshot: () => home.getSnapshot(),
+        getSkips: () => usage.skips(),
       });
     }
+
+    // 使用量を読み込んで UI に反映
+    void usage.load().then(() => {
+      controls?.refresh();
+      blocker.refresh();
+    });
 
     // 初期化
     void readSettings().then((loaded) => {

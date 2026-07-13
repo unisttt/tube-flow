@@ -7,13 +7,15 @@
 import type { Settings } from '../settings';
 import { isWatchPage } from '../page';
 import { activeWindowEnd, dailyLimitSeconds, evaluateBlock, type BlockReason } from '../restrictions';
-import { createUsageTracker, formatMinutes, type UsageTracker } from '../usage';
+import { formatMinutes, type UsageTracker } from '../usage';
 
 const OVERLAY_ID = 'tf-block-overlay';
 const FLUSH_EVERY = 5; // 秒
 
 interface BlockerDeps {
   getSettings: () => Settings;
+  /** 視聴秒数・スキップ回数を共有する使用量トラッカー */
+  usage: UsageTracker;
 }
 
 export interface Blocker {
@@ -24,7 +26,7 @@ export interface Blocker {
 }
 
 export function createBlocker(deps: BlockerDeps): Blocker {
-  const usage: UsageTracker = createUsageTracker();
+  const usage = deps.usage;
   let ticker: ReturnType<typeof setInterval> | null = null;
   let sinceFlush = 0;
   let started = false;
@@ -114,7 +116,8 @@ export function createBlocker(deps: BlockerDeps): Blocker {
         return;
       }
       started = true;
-      void usage.load().then(() => enforce());
+      // usage の load / destroy は所有者（content script）が行う。
+      enforce();
       ticker = setInterval(tick, 1000);
       document.addEventListener('visibilitychange', enforce);
     },
@@ -126,7 +129,6 @@ export function createBlocker(deps: BlockerDeps): Blocker {
       }
       document.removeEventListener('visibilitychange', enforce);
       void usage.flush();
-      usage.destroy();
       hideOverlay();
     },
   };

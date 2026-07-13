@@ -42,7 +42,7 @@ describe('home controller', () => {
     const home = createHomeController({
       getSettings: () => current,
       onState: () => {},
-      requestExit: () => {},
+      onSkip: () => {},
     });
 
     home.apply('test');
@@ -63,7 +63,7 @@ describe('home controller', () => {
     const home = createHomeController({
       getSettings: () => settings({ visibleCount: 3 }),
       onState: () => {},
-      requestExit: () => {},
+      onSkip: () => {},
     });
     home.apply('test');
 
@@ -89,7 +89,7 @@ describe('home controller', () => {
     const home = createHomeController({
       getSettings: () => settings({ visibleCount: 3 }),
       onState: () => {},
-      requestExit: () => {},
+      onSkip: () => {},
     });
     home.apply('test');
 
@@ -102,53 +102,23 @@ describe('home controller', () => {
     home.destroy();
   });
 
-  it('requests exit when skip threshold is reached', () => {
+  it('counts every "next" via onSkip without any limit (無制限に押せて回数を記録)', () => {
     setUrl('https://www.youtube.com/');
     mountHome(10);
-    let exitReason: string | null = null;
+    let skips = 0;
     const home = createHomeController({
-      getSettings: () => settings({ visibleCount: 1, skipCloseThreshold: 2 }),
+      getSettings: () => settings({ visibleCount: 1 }),
       onState: () => {},
-      requestExit: (reason) => {
-        exitReason = reason;
+      onSkip: () => {
+        skips += 1;
       },
     });
     home.apply('test');
-    home.next();
-    home.next();
-    expect(exitReason).toBe('skip-threshold');
-    home.destroy();
-  });
-
-  it('blocks further "next" once the skip limit is reached (残り0 では進まない)', () => {
-    setUrl('https://www.youtube.com/');
-    mountHome(10);
-    let exitCount = 0;
-    const home = createHomeController({
-      getSettings: () => settings({ visibleCount: 1, skipCloseThreshold: 2 }),
-      onState: () => {},
-      requestExit: () => {
-        exitCount += 1;
-      },
-    });
-    const visibleIndex = () =>
-      Array.from(document.querySelectorAll('ytd-rich-item-renderer')).findIndex((t) =>
-        t.classList.contains('tf-visible'),
-      );
-
-    home.apply('test');
-    home.next(); // skip 1
-    home.next(); // skip 2 → 上限到達・退出要求
-    home.apply('at-limit');
-    const indexAtLimit = visibleIndex();
-    expect(home.getSnapshot().remainingSkips).toBe(0);
-    expect(home.getSnapshot().atSkipLimit).toBe(true);
-
-    // 残り0 でさらに押しても進まない（カーソル据え置き・退出要求は増えない）
-    home.next();
-    home.apply('after-limit');
-    expect(visibleIndex()).toBe(indexAtLimit);
-    expect(exitCount).toBe(1);
+    // 何度でも押せる（上限なし・タブは閉じない）
+    for (let i = 0; i < 15; i++) {
+      home.next();
+    }
+    expect(skips).toBe(15);
     home.destroy();
   });
 
@@ -166,7 +136,7 @@ describe('home controller', () => {
     const home = createHomeController({
       getSettings: () => settings({ visibleCount: 1 }),
       onState: () => {},
-      requestExit: () => {},
+      onSkip: () => {},
     });
     home.apply('test');
 
@@ -182,23 +152,21 @@ describe('home controller', () => {
     home.destroy();
   });
 
-  it('ignores "next" on non-home pages (Alt+J on /watch must not count skips or close the tab)', () => {
+  it('ignores "next" on non-home pages (Alt+J on /watch must not count skips)', () => {
     setUrl('https://www.youtube.com/watch?v=abc');
     document.body.innerHTML = '<div id="player"></div>';
-    let exitCount = 0;
+    let skips = 0;
     const home = createHomeController({
-      getSettings: () => settings({ visibleCount: 1, skipCloseThreshold: 1 }),
+      getSettings: () => settings({ visibleCount: 1 }),
       onState: () => {},
-      requestExit: () => {
-        exitCount += 1;
+      onSkip: () => {
+        skips += 1;
       },
     });
     home.apply('test');
     home.next();
     home.next();
-    home.next();
-    expect(exitCount).toBe(0);
-    expect(home.getSnapshot().remainingSkips).toBe(1); // skipCount 据え置き
+    expect(skips).toBe(0); // ホーム以外ではカウントしない
     home.destroy();
   });
 
@@ -208,7 +176,7 @@ describe('home controller', () => {
     const home = createHomeController({
       getSettings: () => settings({ enabled: false }),
       onState: () => {},
-      requestExit: () => {},
+      onSkip: () => {},
     });
     home.apply('test');
     const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));

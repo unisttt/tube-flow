@@ -20,8 +20,6 @@ export interface Settings {
   hideShorts: boolean;
   /** 表示カード 1 枚の幅（px。中央寄せ表示の大きさ。コンテナ幅で頭打ち） */
   cardWidth: number;
-  /** Alt+J 連打を許容する回数（0 で監視無効） */
-  skipCloseThreshold: number;
 
   // ── 利用制限 ──
   /** 時間帯ブロックを有効にするか */
@@ -40,7 +38,6 @@ export const DEFAULTS: Settings = {
   watchVisibleCount: 0,
   hideShorts: true,
   cardWidth: 720,
-  skipCloseThreshold: 3,
   scheduleBlockEnabled: false,
   blockWindows: [],
   dailyLimitEnabled: false,
@@ -51,7 +48,6 @@ export const LIMITS = {
   visibleCount: { min: 0, max: 6 },
   watchVisibleCount: { min: 0, max: 20 },
   cardWidth: { min: 360, max: 1280 },
-  skipCloseThreshold: { min: 0, max: 10 },
   dailyLimitMinutes: { min: 5, max: 1440 },
 } as const;
 
@@ -126,12 +122,6 @@ export function sanitizeSettings(raw: Partial<Record<keyof Settings, unknown>> =
       LIMITS.cardWidth.min,
       LIMITS.cardWidth.max,
       DEFAULTS.cardWidth,
-    ),
-    skipCloseThreshold: clampNumber(
-      raw.skipCloseThreshold,
-      LIMITS.skipCloseThreshold.min,
-      LIMITS.skipCloseThreshold.max,
-      DEFAULTS.skipCloseThreshold,
     ),
     scheduleBlockEnabled: Boolean(raw.scheduleBlockEnabled ?? DEFAULTS.scheduleBlockEnabled),
     blockWindows: sanitizeWindows(raw.blockWindows ?? DEFAULTS.blockWindows),

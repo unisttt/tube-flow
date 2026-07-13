@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clampCursor, computeVisibleBounds, shouldRequestExit } from '../../lib/cursor';
+import { clampCursor, computeVisibleBounds } from '../../lib/cursor';
 
 describe('clampCursor', () => {
   it('keeps cursor inside range when visibleCount > 0', () => {
@@ -30,16 +30,5 @@ describe('computeVisibleBounds', () => {
 
   it('handles zero count', () => {
     expect(computeVisibleBounds(4, 0)).toEqual({ start: 4, end: 4 });
-  });
-});
-
-describe('shouldRequestExit', () => {
-  it('is false when threshold is 0 (disabled)', () => {
-    expect(shouldRequestExit(99, 0)).toBe(false);
-  });
-
-  it('is true once skipCount reaches threshold', () => {
-    expect(shouldRequestExit(3, 3)).toBe(true);
-    expect(shouldRequestExit(2, 3)).toBe(false);
   });
 });

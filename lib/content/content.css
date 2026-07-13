@@ -211,26 +211,23 @@ html.tf-home.tf-ready .tf-controls[data-visible='true'] {
   cursor: pointer;
   transition: background 0.15s ease;
 }
-.tf-controls button:hover:not(:disabled) {
+.tf-controls button:hover {
   background: rgba(255, 255, 255, 0.22);
 }
-.tf-controls button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.tf-controls button[data-error='true'] {
-  background: rgba(220, 60, 60, 0.85);
-}
 
+/* 本日の「次へ」回数バッジ。回数が増えるほど目立たせて注意を促す */
 .tf-controls .tf-meta {
   font-size: 11px;
-  font-weight: 500;
-  opacity: 0.8;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
 }
-.tf-controls .tf-meta[data-state='zero'] {
-  color: #ff8a8a;
-  opacity: 1;
+.tf-controls .tf-meta[data-level='mid'] {
+  background: rgba(255, 176, 32, 0.9);
+  color: #1a1200;
 }
-.tf-controls.tf-exit-requested {
-  outline: 2px solid rgba(255, 138, 138, 0.8);
+.tf-controls .tf-meta[data-level='high'] {
+  background: rgba(255, 90, 90, 0.95);
+  color: #fff;
 }

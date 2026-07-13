@@ -228,28 +228,26 @@ test.describe('Tube Flow settings propagation', () => {
     expect(width).toBe('500px');
   });
 
-  test('home: reaching skipCloseThreshold closes the tab', async ({ context, extensionId }) => {
+  test('home: "次へ" is unlimited and shows today\'s skip count badge', async ({ context }) => {
     await stubYouTube(context);
-
-    const optionsPage = await context.newPage();
-    await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
-    await optionsPage.fill('#visibleCount', '1');
-    await optionsPage.fill('#skipCloseThreshold', '1');
-    await optionsPage.click('button[type="submit"]');
-    await optionsPage.waitForFunction(() =>
-      document.getElementById('status')?.textContent?.includes('保存'),
-    );
-    await optionsPage.close();
-
     const page = await context.newPage();
     await page.goto('https://www.youtube.com/');
     await page.waitForSelector('html.tf-home.tf-ready');
 
-    // threshold=1: 1 回「次へ」でスキップ上限 → バックグラウンドがタブを閉じる
-    const closed = page.waitForEvent('close', { timeout: 15_000 });
-    await page.locator('.tf-controls button[data-action="next"]').click();
-    await closed;
-    expect(page.isClosed()).toBe(true);
+    const nextBtn = page.locator('.tf-controls button[data-action="next"]');
+    const badge = page.locator('.tf-controls [data-role="skip-count"]');
+
+    // 何度でも押せる（無効化されない）。押した回数がバッジに出る
+    for (let i = 0; i < 5; i++) {
+      await nextBtn.click();
+    }
+    await expect(nextBtn).toBeEnabled();
+    await expect(badge).toHaveText('本日5回');
+
+    // 再読み込みしても回数が残る（storage.local に永続化。これが要件の肝）
+    await page.reload();
+    await page.waitForSelector('html.tf-home.tf-ready');
+    await expect(page.locator('.tf-controls [data-role="skip-count"]')).toHaveText('本日5回');
   });
 
   test('watch: watchVisibleCount = 2 reveals exactly 2 nested recommendations', async ({
