@@ -300,6 +300,15 @@ test.describe('Tube Flow 利用制限', () => {
     const overlay = page.locator('#tf-block-overlay');
     await expect(overlay).toBeVisible({ timeout: 15_000 });
     await expect(overlay).toHaveAttribute('data-reason', 'schedule');
+
+    // 背景は完全不透明で、裏の YouTube が一切透けないこと（半透明だと薄く見える）。
+    const alpha = await overlay.evaluate((el) => {
+      const bg = getComputedStyle(el).backgroundColor; // "rgb(...)" or "rgba(..., a)"
+      const inner = bg.match(/rgba?\(([^)]+)\)/)?.[1] ?? '';
+      const parts = inner.split(',').map((v) => v.trim());
+      return parts.length === 4 ? parseFloat(parts[3]!) : 1;
+    });
+    expect(alpha).toBe(1);
   });
 
   test('daily-limit: exceeding the daily watch limit shows the block overlay', async ({

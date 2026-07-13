@@ -142,8 +142,8 @@ html.tf-watch .ytp-cards-button {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(8, 8, 10, 0.97);
-  backdrop-filter: blur(8px);
+  /* 完全不透明。裏の YouTube を一切透かさない（半透明だと薄く見えてしまう） */
+  background: #08080a;
   font-family: 'Roboto', 'Noto Sans JP', system-ui, sans-serif;
   color: #fff;
   cursor: default;
