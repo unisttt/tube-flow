@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>YouTube Home Fixture</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; background: #0f0f0f; color: #fff; }
+      ytd-rich-item-renderer { display: block; padding: 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+      ytd-reel-shelf-renderer { display: block; margin: 12px; padding: 12px; background: rgba(255,0,0,.2); }
+      button { padding: 6px 10px; }
+    </style>
+    <style>
+      tp-yt-iron-dropdown { position: fixed; top: 20px; left: 20px; background: #222; }
+      .ytListItemViewModelButtonOrAnchor { display: block; width: 200px; text-align: left; }
+    </style>
+    <script>
+      // yt-navigate-finish を content script が待つので、ロード後に一度発火させる
+      window.addEventListener('DOMContentLoaded', () => {
+        document.dispatchEvent(new CustomEvent('yt-navigate-finish'));
+      });
+
+      // 実 YouTube の 3 点メニューを模す:
+      //  「その他の操作」クリックで tp-yt-iron-dropdown を開き、
+      //  項目 button.ytListItemViewModelButtonOrAnchor > span.ytListItemViewModelTitle をクリックすると
+      //  元カードに data 属性を立てて実行済みを表す。
+      const MENU_LABELS = ['キューに追加', '[後で見る] に保存', '共有', '興味なし', 'チャンネルをおすすめに表示しない', '報告'];
+      document.addEventListener('click', (event) => {
+        const menuBtn = event.target.closest('button[aria-label="その他の操作"]');
+        if (!menuBtn) return;
+        const tile = menuBtn.closest('ytd-rich-item-renderer');
+        document.querySelectorAll('tp-yt-iron-dropdown').forEach((d) => d.remove());
+        const dropdown = document.createElement('tp-yt-iron-dropdown');
+        for (const label of MENU_LABELS) {
+          const b = document.createElement('button');
+          b.className = 'ytListItemViewModelButtonOrAnchor';
+          const span = document.createElement('span');
+          span.className = 'ytListItemViewModelTitle';
+          span.textContent = label;
+          b.appendChild(span);
+          b.addEventListener('click', () => {
+            if (label === '興味なし') tile.dataset.notInterested = '1';
+            if (label === '[後で見る] に保存') tile.dataset.watchLater = '1';
+            dropdown.remove();
+          });
+          dropdown.appendChild(b);
+        }
+        document.body.appendChild(dropdown);
+      });
+    </script>
+  </head>
+  <body>
+    <ytd-app>
+      <ytd-two-column-browse-results-renderer>
+        <div id="primary">
+          <ytd-rich-grid-renderer>
+            <div id="contents">
+              <ytd-reel-shelf-renderer is-shorts>
+                <span>Shorts shelf</span>
+              </ytd-reel-shelf-renderer>
+              <ytd-rich-item-renderer data-id="0">
+                <yt-lockup-view-model>
+                  <a href="/watch?v=0">動画 0</a>
+                  <button aria-label="その他の操作">⋮</button>
+                </yt-lockup-view-model>
+              </ytd-rich-item-renderer>
+              <ytd-rich-item-renderer data-id="1">
+                <yt-lockup-view-model>
+                  <a href="/watch?v=1">動画 1</a>
+                  <button aria-label="その他の操作">⋮</button>
+                </yt-lockup-view-model>
+              </ytd-rich-item-renderer>
+              <ytd-rich-item-renderer data-id="2">
+                <yt-lockup-view-model>
+                  <a href="/watch?v=2">動画 2</a>
+                  <button aria-label="その他の操作">⋮</button>
+                </yt-lockup-view-model>
+              </ytd-rich-item-renderer>
+              <ytd-rich-item-renderer data-id="3">
+                <yt-lockup-view-model>
+                  <a href="/watch?v=3">動画 3</a>
+                  <button aria-label="その他の操作">⋮</button>
+                </yt-lockup-view-model>
+              </ytd-rich-item-renderer>
+              <ytd-rich-item-renderer data-id="4">
+                <yt-lockup-view-model>
+                  <a href="/watch?v=4">動画 4</a>
+                  <button aria-label="その他の操作">⋮</button>
+                </yt-lockup-view-model>
+              </ytd-rich-item-renderer>
+              <ytd-rich-section-renderer class="topic-shelf">
+                <span>その他のトピック</span>
+              </ytd-rich-section-renderer>
+            </div>
+          </ytd-rich-grid-renderer>
+        </div>
+      </ytd-two-column-browse-results-renderer>
+    </ytd-app>
+  </body>
+</html>

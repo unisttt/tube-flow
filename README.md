@@ -1,81 +1,159 @@
 # Tube Flow (Chrome Extension)
 
-Tube Flow は YouTube ホーム画面に表示されるカードを最小化し、衝動的な視聴を抑えることを目的とした Manifest v3 対応の Chrome 拡張です。先頭 1 件だけを表示し、キーボードまたは右下ミニ UI／ツールバーポップアップで「次へ進む」「後で見る」「Shorts 非表示」などを即座に切り替えられます。
+Tube Flow は YouTube のホーム画面と視聴ページで表示されるカード／おすすめを絞り込み、衝動的な視聴を抑えることを目的とした Manifest V3 対応の Chrome 拡張です。ホームは先頭 `visibleCount` 件だけを表示し、視聴ページのおすすめは `watchVisibleCount` 件までに制限します。キーボード・カード上の個別ボタン・ツールバーポップアップから即座に操作できます。
 
-- **フォーカス表示**: ホーム `/` のカードは先頭 `visibleCount` 件（既定 1）のみ `hd-visible` として表示し、それ以外は完全にマスクします。無効化中は一切 DOM に手を入れず、YouTube 本来のレイアウトに戻ります。
-- **視聴ページのおすすめ制御**: `/watch` の右カラム（「次の動画」「Up next」）を `watchVisibleCount` 件まで表示。既定 0 件なので視聴に集中できます。再生終了後にプレイヤー上へ自動表示されるエンドスクリーンのおすすめもまとめて非表示にします。
-- **興味なしショートカット**: 右下ミニ UI またはショートカットから「興味なし」を素早く実行し、ホームのカードを手元で整理できます。
-- **Shorts 抑制**: reel/shelf ベースの Shorts セクションを既定で非表示化（マスタートグルで一括停止可能）。
-- **クイックトグル UI**: Chrome ツールバーの拡張アイコンクリックで開くポップアップから、Tube Flow の有効／無効・Shorts 抑制・表示枚数などをワンクリックで切り替え。変更はすぐに全タブへ配信されます。
-- **キーボード操作**: Alt+J で次のカードへ、Alt+L で「後で見る」に追加。連続スキップ残数をミニ UI に表示します。
-- **連続スキップ閾値**: `skipCloseThreshold` に達するとサービスワーカー経由でタブを閉じるなどのアクションをトリガー（挙動は今後拡張予定）。
-- **ログ／ステートイベント**: `tube-flow:state` カスタムイベントで UI / 他モジュールへ状態を配信。
+- **技術スタック**: [WXT](https://wxt.dev) + TypeScript（MV3）
+- **対応ブラウザ**: Chrome / Chromium 系（Firefox もビルド可）
+- **テスト**: Vitest（ユニット・happy-dom）+ Playwright（E2E・ビルド済み拡張をロード）
 
-## 仕組み概要
-- `content/prelude.js` が `document_start` で走り、`html.hd-home-target` クラスとマスク用 CSS を適用。視覚的にカードが目に入る前に覆い隠します。
-- `content/main.js` が DOM 適用、MutationObserver、SPA イベント (`yt-navigate-*`) に対応し、カードごとに `hd-visible` / `hd-hidden` を切り替えます。
-- 右下ミニ UI (`content/ui/controls.js`) はマウント後に Tube Flow コアへイベントを投げ、残りスキップ回数などのステートを反映します。
-- 背景サービスワーカー (`background/service.js`) はショートカットコマンドを content script へ仲介し、閾値到達時の `request-exit` を受け取ります。
+> **v0.4.0 で技術スタックを刷新しました。** 旧来の素の JS + 手書きセレクタ構成から WXT + TypeScript へ移行し、YouTube の DOM 変更（`yt-lockup-view-model` 化、視聴ページおすすめのネスト化）に強い**属性ベースの表示制御**へ作り替えています。機能要件は従来どおりです。
 
-ディレクトリ構成の一例:
-```
-content/
-  ├─ prelude.js          // document_startの初期マスク
-  ├─ main.js             // コア制御（可視化・MutationObserver）
-  ├─ ui/controls.js      // 右下ミニ UI
-  ├─ adapters/home.js    // ホーム専用 DOM セレクタ
-  └─ style.css           // .hd-* 名前空間のスタイル
-background/service.js    // MV3 service worker
-manifest.json            // 拡張設定
-```
+---
 
-## インストール（デベロッパー向け）
-1. `pnpm install` で依存を取得。
-2. Chrome で `chrome://extensions/` を開き、デベロッパーモードを ON。
-3. 「パッケージ化されていない拡張機能を読み込む」でこの `tube-flow` ディレクトリを指定。
-4. YouTube ホームをリロードすると、カードが 1 件だけ表示されるようになります。
+## 目次
+- [主な機能](#主な機能)
+- [操作方法](#操作方法)
+- [設定項目](#設定項目)
+- [インストール（利用者向け）](#インストール利用者向け)
+- [開発](#開発)
+- [アーキテクチャ](#アーキテクチャ)
+- [内部仕様（コントラクト）](#内部仕様コントラクト)
+- [テスト](#テスト)
+- [デバッグ](#デバッグ)
+- [変更履歴](#変更履歴)
+
+---
+
+## 主な機能
+- **フォーカス表示（ホーム）**: `/` のカードを先頭 `visibleCount` 件（既定 1）のみ表示。棚（「その他のトピック」等）や Shorts、continuation もまとめてマスクし、指定枚数だけを残します。無効化中は DOM に一切手を入れず、YouTube 本来のレイアウトへ即座に戻ります。
+- **おすすめ制御（視聴ページ）**: `/watch` 右カラムのおすすめを `watchVisibleCount` 件（既定 0）まで表示。0 のときはパネルごと非表示にします。再生終了後のエンドスクリーンおすすめもまとめて抑制。
+- **後で見る / 興味なし（カード単位）**: 表示中の各カードに個別の「後で見る」「興味なし」ボタンをオーバーレイ表示し、対象を直接選べます（複数表示時も各カードを個別に操作可能）。新レイアウトでサムネイルのオーバーレイボタンが消えたため、内部的には「直接ボタン → 3 点メニュー経由」の順にフォールバックします。
+- **Shorts 抑制**: reel/shelf ベースの Shorts セクションをホームで非表示化。
+- **クイックトグル UI**: ツールバーのポップアップから有効/無効・Shorts 抑制・表示枚数をワンクリックで切替。変更は全 YouTube タブへ即時配信。
+- **ページ送り**: 「次へ」は**表示枚数（`visibleCount`）ぶんをまとめて送る** 1 ページ送りです（3 枚表示なら 3 枚流れる）。
+- **連続スキップ抑制**: 「次へ」の連続押下が `skipCloseThreshold` に達すると、それ以上は「次へ」を止め（残り 0 表示・ボタン無効化）、サービスワーカー経由でタブを閉じます（閉じられない場合は登録チャンネルのフィードへフォールバック遷移）。
 
 ## 操作方法
-| 操作 | キーボード | 説明 |
-|------|------------|------|
-| 次のカードへ | Alt+J (macOS では Option+J) | 表示カーソルを +1。右下 UI に残りスキップ回数を表示 |
-| 後で見るへ追加 | Alt+L | 現在のカードにある「後で見る / Watch later」をクリック代行 |
 
-右下ミニ UI でも同じ 2 操作が利用できます。連続スキップ残数は `skipCloseThreshold` を超えると 0 になり、バックグラウンドへ `request-exit` が送信されます。Tube Flow を一時的にオフにするとミニ UI も自動的に退場し、YouTube の挙動が完全に素に戻ります。
+| 操作 | キーボード | カード上ボタン / ミニ UI | 説明 |
+|------|-----------|--------------------------|------|
+| 次へ（ページ送り） | Alt+J | 右下ミニ UI「次へ」 | 表示枚数ぶんまとめて送る。残り回数を「残りN」で表示し、0 で停止 |
+| 後で見る | Alt+L（先頭カード） | 各カードの「後で見る」 | キーボードは先頭カード、マウスは各カードを個別に対象化 |
+| 興味なし | Alt+Shift+I（先頭カード） | 各カードの「興味なし」 | 同上 |
 
-## 設定（Options UI）
-Chrome の拡張管理画面から 「詳細」→「拡張機能オプション」 を開くか、`chrome-extension://<拡張ID>/options/index.html` にアクセスすると次の項目を GUI で変更できます。
+> キーボードショートカットは `chrome://extensions/shortcuts` から変更できます（macOS では Alt＝Option）。
 
-| 項目 | 説明 | 既定値 |
-|------|------|--------|
-| Tube Flow を有効にする (`enabled`) | Tube Flow の DOM 制御全体をオン／オフ。無効化すると即座に YouTube の表示が元に戻り、ミニ UI も退場。 | 有効 |
-| 表示カード数 (`visibleCount`) | ホームで常時表示する動画カードの枚数。0 で全カード非表示。 | 1 |
-| おすすめ表示数 (`watchVisibleCount`) | 視聴ページ右カラムのおすすめリストで許可する最大表示件数。0 でおすすめをすべて隠す。 | 0 |
-| Shorts 非表示 (`hideShorts`) | ホームに表示される Shorts やリール棚をマスクするか。 | 有効 |
-| 連続スキップ回数 (`skipCloseThreshold`) | Alt+J の連打を許容する回数。0 で監視無効。 | 3 |
+## 設定項目
 
-Chrome ツールバーポップアップも同じ項目を持ち、数値はステッパーで調整できます。いずれの UI から変更しても `chrome.storage.sync` を経由して同期されます。
+| 項目 | 説明 | 既定値 | 範囲 |
+|------|------|--------|------|
+| `enabled` | Tube Flow 全体の有効/無効。無効化で即座に YouTube を原状復帰 | 有効 | — |
+| `visibleCount` | ホームで常時表示するカード数（0 で全非表示）。「次へ」の送り幅も兼ねる | 1 | 0–6 |
+| `watchVisibleCount` | 視聴ページおすすめの最大表示数（0 でパネルごと非表示） | 0 | 0–20 |
+| `hideShorts` | ホームの Shorts 棚を隠すか | 有効 | — |
+| `skipCloseThreshold` | 「次へ」を連続で押せる回数。到達で停止＋タブクローズ（0 で監視無効） | 3 | 0–10 |
 
-保存すると直ちにすべての YouTube タブへ反映され、既定に戻すボタンで初期値にリセットできます。内部的には `chrome.storage.sync` に保存されるため、再読み込み／新規タブでも設定は維持されます。
+設定は `chrome.storage.sync` に保存され、ポップアップ／オプションのどちらから変更しても全 YouTube タブへ即時反映されます。値は保存時に範囲内へクランプされます（`lib/settings.ts`）。
 
-## 開発・テスト
-- 依存インストール: `pnpm install`
-- ユニットテスト（Vitest + jsdom）: `pnpm test:unit`
-- 統合テスト（Playwright / Chromium 拡張）: `pnpm exec playwright install chromium` → `pnpm test:int`
-  - 既存ケースに加え、オプション UI で設定を変更 → YouTube タブへ即座に反映されることを確認するシナリオを含んでいます。
+## インストール（利用者向け）
+1. `pnpm install && pnpm build` を実行（`.output/chrome-mv3` が生成される）。
+2. `chrome://extensions/` を開きデベロッパーモードを ON。
+3. 「パッケージ化されていない拡張機能を読み込む」で **`.output/chrome-mv3`** を指定。
+4. YouTube を開き直すと表示が絞り込まれます。
 
-## ログ/デバッグ
-- `console.debug` で `[TubeFlow][prelude]`, `[TubeFlow] setReadyState`, `[TubeFlow] applied` などが出力されます。DevTools Console のレベルを “Verbose” にすると一覧できます。
-- `window.addEventListener('tube-flow:state', (event) => console.log(event.detail))` のようにしてコア状態を把握することも可能です。
+> **読み込むフォルダはリポジトリ直下ではなく `.output/chrome-mv3`（ビルド成果物）です。** ソースを直接読み込む構成ではありません。コード更新後は再ビルドし、`chrome://extensions/` で 🔄 再読み込みします。
+
+## 開発
+```bash
+pnpm install          # 依存取得（postinstall で wxt prepare が走る）
+pnpm dev              # 開発モード（HMR 付き。.output/chrome-mv3-dev を読み込む）
+pnpm build            # 本番ビルド → .output/chrome-mv3
+pnpm zip              # 配布用 zip
+pnpm compile          # 型チェック（tsc --noEmit）
+pnpm test             # ユニットテスト
+pnpm test:e2e         # E2E テスト（先に pnpm build が必要）
+```
+- 開発時は `pnpm dev` を起動したまま `.output/chrome-mv3-dev` を読み込むと、変更が自動反映されます。
+- Firefox 版は `pnpm dev:firefox` / `pnpm build:firefox`。
+
+## アーキテクチャ
+```
+entrypoints/
+  youtube.content.ts   # コンテンツスクリプト: document_start で起動し home/watch/controls を統括
+  background.ts        # MV3 service worker（コマンド仲介・request-exit でのタブクローズ）
+  popup/               # ツールバーポップアップ（index.html / main.ts / style.css）
+  options/             # 設定ページ（index.html / main.ts / style.css）
+lib/
+  settings.ts          # 設定の型・既定値・検証・読み書き・変更購読
+  messaging.ts         # 型付きメッセージプロトコル・全タブ通知
+  cursor.ts            # カーソル/可視範囲/退出判定の純粋関数（ユニットテスト対象）
+  page.ts              # ページ種別判定（home/watch）・SPA ナビゲーション購読
+  adapters.ts          # YouTube DOM セレクタの一元管理（DOM 変更時はここだけ直す）
+  content/
+    home.ts            # ホームの表示制御コントローラ（カーソル・ページ送り・個別ボタン）
+    watch.ts           # 視聴ページのおすすめ制御コントローラ
+    actions.ts         # 後で見る/興味なし（直接ボタン→メニュー経由フォールバック）
+    controls.ts        # 右下ミニ UI（「次へ」）
+    content.css        # tf-* 名前空間のスタイル（属性ベースで表示制御）
+tests/
+  unit/                # Vitest + happy-dom
+  e2e/                 # Playwright（ビルド済み拡張ロード）
+  fixtures/            # 実 DOM を模した静的 HTML
+```
+
+**データフロー概要**
+1. `youtube.content.ts` が `document_start` で起動し、URL からマスク用 `tf-*` クラスを即時付与（フリッカー防止）。
+2. `chrome.storage.sync` から設定を読み、`home`/`watch` コントローラが `MutationObserver` で DOM を監視して表示制御。
+3. キーボードコマンドは `background.ts` が受け、対象タブの content へ転送。ポップアップ/オプションの変更は `messaging.ts` が全タブへ通知。
+4. 「次へ」の連続がしきい値に達すると content が `request-exit` を送り、`background.ts` がタブを閉じる。
+
+## 内部仕様（コントラクト）
+
+DOM 変更に強くするため、表示制御は **`<html>` のフラグクラス × タイルの属性/クラス** で行い、ネスト深度に依存しません。
+
+**`<html>` に付くフラグクラス**
+
+| クラス | 意味 |
+|--------|------|
+| `tf-home` | ホーム表示中かつ有効 |
+| `tf-watch` | 視聴ページ表示中かつ有効 |
+| `tf-ready` | ホームの制御適用済み（適用前は全カードをプリマスク） |
+| `tf-watch-ready` | 視聴ページの制御適用済み |
+| `tf-hide-shorts` | Shorts 抑制が有効 |
+| `tf-watch-hide-all` | `watchVisibleCount=0`：おすすめパネルごと非表示 |
+| `tf-managed-root` | 管理下のグリッド `#contents`。直下のタイル以外を一括マスク |
+
+**タイルに付く属性/クラス**
+
+| 印 | 対象 | 意味 |
+|----|------|------|
+| `data-tf-tile` | ホームのカード | Tube Flow の管理対象タイル |
+| `data-tf-rec` | 視聴ページのおすすめ | 同（おすすめ 1 件） |
+| `.tf-visible` / `.tf-hidden` | 上記タイル | 表示 / 非表示 |
+| `.tf-card` | 表示中カード | 個別ボタンを重ねる基点（`position: relative`） |
+| `.tf-card-actions` / `[data-tf-action]` | カード上ボタン | 後で見る/興味なしの個別ボタン |
+
+**メッセージプロトコル**（`lib/messaging.ts`。すべて `source: "tube-flow"`）
+
+| type | 方向 | 用途 |
+|------|------|------|
+| `command-next` / `command-watch-later` / `command-not-interested` | background → content | ショートカット実行 |
+| `options-updated` | popup/options → content | 設定変更の即時反映 |
+| `request-exit` | content → background | スキップ上限到達でタブを閉じる |
+
+## テスト
+```bash
+pnpm test             # ユニット（Vitest + happy-dom）
+pnpm test:e2e         # E2E（Playwright がビルド済み拡張を Chromium に読み込み）
+```
+- **ユニット**: 純粋関数（`cursor` / `settings`）に加え、コントローラを happy-dom 上のフィクスチャで駆動。回帰として **視聴ページおすすめのネスト構造**、**ホームの棚/セクションのマスク**、**スキップ上限での停止（残り0 で進まない）** を固定。
+- **E2E**: `.output/chrome-mv3` を実際に読み込み、`www.youtube.com` をローカル静的フィクスチャでスタブして検証（先頭 N 件表示・棚の非表示・ページ送り・カード個別ボタン・設定反映・**しきい値到達でタブが閉じる**）。`pnpm build` を先に実行してください。
+- E2E は拡張を読み込むため full chromium が必要です（fixtures 側で `headless:false` + `--headless=new` を指定）。
+
+## デバッグ
+- コンテンツ側は `[TubeFlow]...` 系の `console.warn` を出力します（想定内のフォールバック時など）。
+- `<html>` のクラス（上表の `tf-*`）とタイルの `data-tf-tile` / `data-tf-rec` を DevTools で見ると、現在の制御状態を確認できます。
+- YouTube の DOM が変わって効かなくなった場合は、まず `lib/adapters.ts` のセレクタを実 DOM に合わせて更新してください。
 
 ## 変更履歴
-- **0.3.0** (2025-10-12): グローバルトグルとツールバーポップアップを追加。無効化時は DOM を即座に原状復帰し、再度オンにした際にも UI が確実に復帰するよう挙動を統一。ホームへ戻る際の一瞬表示されるちらつきも解消。
-- **0.2.4**: Polymerless レイアウト（`yt-lockup-view-model`）や棚型セクションに対応するタイル検出ロジックを刷新し、フィルタリング時にカードが一瞬表示されるちらつきを抑制。
-
-## 今後の拡張案
-- ホーム以外（検索結果 `/results` など）への対応。
-- `skipCloseThreshold` 到達時の動作をオプション UI で選択可能にする（タブ閉鎖など）。
-- セレクタの多言語・DOM 変更検知の仕組み強化。
-- CI での Playwright 実行、HAR リプレイによるモック整備。
-
-集中して視聴する／しないを切り替えたい場合、Tube Flow をオンにしたままでも必要な動画だけにフォーカスして判断できるはずです。疑問点や改善案があれば Issue/PR でフィードバックしてください。
+[`CHANGELOG.md`](./CHANGELOG.md) を参照してください。

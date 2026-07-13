@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>YouTube Watch Fixture</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; background: #0f0f0f; color: #fff; }
+      #primary { padding: 16px; }
+      #secondary { padding: 16px; }
+      yt-lockup-view-model { display: block; padding: 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    </style>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        document.dispatchEvent(new CustomEvent('yt-navigate-finish'));
+      });
+    </script>
+  </head>
+  <body>
+    <ytd-app>
+      <ytd-watch-flexy>
+        <div id="primary">
+          <div id="player">プレイヤー</div>
+        </div>
+        <div id="secondary">
+          <div id="related">
+            <ytd-watch-next-secondary-results-renderer>
+              <div id="items">
+                <!-- 2026-07 実 DOM: おすすめは item-section にネストされる -->
+                <ytd-item-section-renderer>
+                  <div id="contents">
+                    <yt-lockup-view-model data-id="0"><a href="/watch?v=0">おすすめ 0</a></yt-lockup-view-model>
+                    <yt-lockup-view-model data-id="1"><a href="/watch?v=1">おすすめ 1</a></yt-lockup-view-model>
+                    <yt-lockup-view-model data-id="2"><a href="/watch?v=2">おすすめ 2</a></yt-lockup-view-model>
+                    <yt-lockup-view-model data-id="3"><a href="/watch?v=3">おすすめ 3</a></yt-lockup-view-model>
+                    <yt-lockup-view-model data-id="4"><a href="/watch?v=4">おすすめ 4</a></yt-lockup-view-model>
+                  </div>
+                </ytd-item-section-renderer>
+              </div>
+            </ytd-watch-next-secondary-results-renderer>
+          </div>
+        </div>
+      </ytd-watch-flexy>
+    </ytd-app>
+  </body>
+</html>

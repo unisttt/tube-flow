@@ -1,0 +1,167 @@
+/*
+ * Tube Flow コンテンツCSS（名前空間 tf-）。
+ * manifest 経由で document_start に注入され、フリッカーを防ぐ。
+ *
+ * 設計方針: 表示制御は「属性 + クラス」で行い、DOM のネスト深度に依存しない。
+ *   [data-tf-tile] / [data-tf-rec] … Tube Flow が管理対象として印を付けたタイル
+ *   .tf-visible … 表示する / .tf-hidden … 隠す
+ * これにより YouTube が中間コンテナ（ytd-item-section-renderer 等）を挟んでも壊れない。
+ */
+
+/* ===== HOME ===== */
+
+/* 準備完了前: グリッド直下要素（カード・棚・セクション）を一旦隠してフリッカーを防ぐ */
+html.tf-home:not(.tf-ready) ytd-rich-grid-renderer #contents > * {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* 管理対象タイル: 属性ベースなのでネスト深度に依存しない */
+html.tf-home [data-tf-tile].tf-hidden {
+  display: none !important;
+}
+html.tf-home [data-tf-tile]:not(.tf-visible) {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+html.tf-home [data-tf-tile].tf-visible {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 管理下グリッドでは、タイル以外の直下要素（その他のトピック棚・セクション・
+   continuation など）を丸ごとマスクする。先頭 N 件のカードだけを残す挙動。 */
+html.tf-home #contents.tf-managed-root > *:not([data-tf-tile]) {
+  display: none !important;
+}
+
+/* ===== 各カードの個別アクションボタン ===== */
+
+html.tf-home [data-tf-tile].tf-card {
+  position: relative !important;
+}
+.tf-card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 60;
+  display: flex;
+  gap: 6px;
+}
+.tf-card-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(15, 15, 15, 0.82);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease;
+}
+.tf-card-actions button:hover {
+  background: rgba(40, 40, 40, 0.95);
+}
+.tf-card-actions button[data-error='true'] {
+  background: rgba(220, 60, 60, 0.9);
+}
+
+/* Shorts 棚 */
+html.tf-home.tf-hide-shorts ytd-reel-shelf-renderer,
+html.tf-home.tf-hide-shorts ytd-rich-shelf-renderer[is-shorts],
+html.tf-home.tf-hide-shorts ytd-rich-shelf-renderer[modernized-shelf-title*='Shorts' i] {
+  display: none !important;
+}
+
+/* ===== WATCH ===== */
+
+/* 準備完了前: おすすめ全体を隠す */
+html.tf-watch:not(.tf-watch-ready) ytd-watch-next-secondary-results-renderer {
+  visibility: hidden !important;
+}
+
+/* watchVisibleCount === 0: おすすめパネルごと丸ごと非表示（最も堅牢） */
+html.tf-watch.tf-watch-hide-all ytd-watch-next-secondary-results-renderer {
+  display: none !important;
+}
+
+/* watchVisibleCount > 0: 属性ベースで先頭 N 件だけ残す */
+html.tf-watch [data-tf-rec].tf-hidden,
+html.tf-watch [data-tf-rec]:not(.tf-visible) {
+  display: none !important;
+}
+
+/* エンドスクリーン/カードのおすすめは常に抑制 */
+html.tf-watch .ytp-endscreen-content,
+html.tf-watch .ytp-ce-element,
+html.tf-watch .ytp-ce-video,
+html.tf-watch .ytp-ce-covering,
+html.tf-watch .ytp-ce-expanding-overlay,
+html.tf-watch .ytp-upnext,
+html.tf-watch .ytp-autonav-endscreen-upnext-button,
+html.tf-watch .ytp-cards-button {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* ===== 右下ミニ UI ===== */
+
+.tf-controls {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483000;
+  display: none;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(15, 15, 15, 0.92);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  font-family: 'Roboto', 'Noto Sans JP', system-ui, sans-serif;
+  backdrop-filter: blur(6px);
+}
+
+html.tf-home.tf-ready .tf-controls[data-visible='true'] {
+  display: flex;
+}
+
+.tf-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.tf-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+}
+.tf-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tf-controls button[data-error='true'] {
+  background: rgba(220, 60, 60, 0.85);
+}
+
+.tf-controls .tf-meta {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.tf-controls .tf-meta[data-state='zero'] {
+  color: #ff8a8a;
+  opacity: 1;
+}
+.tf-controls.tf-exit-requested {
+  outline: 2px solid rgba(255, 138, 138, 0.8);
+}

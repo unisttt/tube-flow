@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# WXT
+.wxt/
+.output/
+
 # Build outputs / caches
 .dist/
 *.log

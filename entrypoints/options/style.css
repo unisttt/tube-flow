@@ -1,0 +1,99 @@
+:root {
+  color-scheme: light dark;
+}
+body {
+  font-family: system-ui, sans-serif;
+  margin: 24px;
+  color: CanvasText;
+  background: Canvas;
+  max-width: 560px;
+}
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+p.description {
+  margin-bottom: 1.5rem;
+  opacity: 0.75;
+}
+form {
+  display: grid;
+  gap: 16px;
+}
+fieldset {
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  border-radius: 8px;
+  padding: 16px;
+}
+fieldset legend {
+  padding: 0 8px;
+  font-weight: 600;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.field:last-child {
+  margin-bottom: 0;
+}
+.field label {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.field small {
+  opacity: 0.7;
+}
+input[type='number'] {
+  width: 96px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
+input[type='checkbox'] {
+  transform: scale(1.1);
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+button {
+  appearance: none;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #2563eb;
+  color: #fff;
+}
+button.secondary {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+  color: CanvasText;
+}
+#status {
+  margin-top: 12px;
+  font-size: 0.95rem;
+  color: #2563eb;
+  min-height: 1.2em;
+}
+#status[data-error='true'] {
+  color: #dc2626;
+}
+dl.summary {
+  margin: 24px 0 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 16px;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+dl.summary dt {
+  font-weight: 600;
+}

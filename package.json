@@ -1,21 +1,29 @@
 {
-  "name": "tube-flow-extension",
-  "version": "0.3.0",
+  "name": "tube-flow",
+  "version": "0.4.0",
+  "description": "YouTube のホーム/視聴ページで表示カードを制限し、集中をサポートする MV3 Chrome 拡張",
+  "type": "module",
   "private": true,
-  "type": "commonjs",
   "scripts": {
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
-    "test:int": "playwright test",
-    "test:int:ui": "playwright test --ui"
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
-    "@playwright/test": "^1.47.0",
-    "jsdom": "^24.1.0",
-    "playwright": "^1.47.0",
-    "vitest": "^1.6.0"
-  },
-  "dependencies": {
-    "webextension-polyfill": "^0.10.0"
+    "@playwright/test": "^1.49.0",
+    "@types/chrome": "^0.0.287",
+    "happy-dom": "^15.11.0",
+    "playwright": "^1.49.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "wxt": "^0.19.0"
   }
 }
