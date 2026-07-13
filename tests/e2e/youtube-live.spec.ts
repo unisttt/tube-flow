@@ -1,10 +1,17 @@
 /**
  * 実 youtube.com に対するライブ E2E（スタブなし）。
  * ネットワークが必要で、YouTube 側の変化で不安定になりうるため、
- * 既定のスイートからは testIgnore で除外し、`pnpm test:e2e:live` で明示実行する。
+ * 既定のスイート（pnpm test:e2e）からは @live タグで除外し、
+ * `pnpm test:e2e:live` で明示実行する。
  *
- * ここで検証したいのは、静的フィクスチャでは分からない「実ページで
- * 拡張が本当に効いているか」— tf-watch の付与や再生後エンドスクリーンの抑制。
+ * 検証の狙いは、静的フィクスチャでは分からない「実ページで拡張が本当に効いて
+ * いるか」— tf-watch の付与と、実 DOM のおすすめ抑制。実 YouTube の広告/自動
+ * 再生は非決定的なので、次の 2 層に分けて堅牢化している:
+ *
+ *  (A) 確定的な中核: 関連サイドバーは「実在するのに拡張 CSS で display:none」。
+ *      再生に依存せず初期 DOM に出る要素なので、空振り（vacuous pass）にならない。
+ *  (B) ベストエフォート: エンドスクリーン抑制。実際に生成できた時だけ検証し、
+ *      広告等で生成に至らなければ (A) に委ねてスキップ扱いにする。
  */
 import { test, expect } from './fixtures';
 import type { Page } from '@playwright/test';
@@ -35,84 +42,100 @@ async function dismissConsent(page: Page): Promise<void> {
   }
 }
 
-test('LIVE: watch ページで tf-watch が付き、再生後のエンドスクリーンが隠れる', {
-  tag: '@live',
-}, async ({ context }) => {
-  const page = await context.newPage();
-  await page.goto(SHORT_VIDEO, { waitUntil: 'domcontentloaded' });
-  await dismissConsent(page);
-  if (!/\/watch/.test(page.url())) {
+test(
+  'LIVE: 実 watch ページで tf-watch が付き、おすすめが抑制される',
+  { tag: '@live' },
+  async ({ context }) => {
+    const page = await context.newPage();
+    // 2 カラムの watch レイアウト（サイドバー表示）に必要な幅を確保する。
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto(SHORT_VIDEO, { waitUntil: 'domcontentloaded' });
-  }
-
-  // (1) 実ページで tf-watch が html に付くか（CSS が効く前提条件）
-  await expect(page.locator('html')).toHaveClass(/tf-watch/, { timeout: 30_000 });
-
-  // (2) 本編の video を取得（広告中はスキップを待つ）
-  await page.waitForSelector('video', { timeout: 30_000 });
-  await page
-    .waitForFunction(
-      () => {
-        const p = document.querySelector('.html5-video-player');
-        const v = document.querySelector('video') as HTMLVideoElement | null;
-        return !!v && !!v.duration && !p?.classList.contains('ad-showing');
-      },
-      { timeout: 45_000 },
-    )
-    .catch(() => {});
-
-  // (3) 終盤へシークして動画を終わらせ、エンドスクリーンを出す
-  await page.evaluate(async () => {
-    const v = document.querySelector('video') as HTMLVideoElement;
-    v.muted = true;
-    if (v.duration) {
-      v.currentTime = Math.max(0, v.duration - 1.2);
-      await v.play().catch(() => {});
+    await dismissConsent(page);
+    if (!/\/watch/.test(page.url())) {
+      await page.goto(SHORT_VIDEO, { waitUntil: 'domcontentloaded' });
     }
-  });
-  await page.waitForFunction(() => (document.querySelector('video') as HTMLVideoElement)?.ended, {
-    timeout: 30_000,
-  });
 
-  // エンドスクリーン要素が現れるまで待つ（本編終了後に生成される）
-  await page
-    .waitForSelector(
-      '.ytp-fullscreen-grid, .ytp-endscreen-content, .ytp-autonav-endscreen-countdown-overlay',
-      { timeout: 15_000, state: 'attached' },
-    )
-    .catch(() => {});
+    // (1) 実ページで tf-watch が html に付くか（拡張が動いている前提条件・CSS の土台）
+    await expect(page.locator('html')).toHaveClass(/tf-watch/, { timeout: 30_000 });
 
-  // (4) プレイヤー上に「見えている」関連動画リンクが無いこと（＝実際に消えているか）。
-  //     クラス名に依存せず、視認できる /watch リンクを直接数えるのが確実。
-  const result = await page.evaluate(() => {
-    const disp = (sel: string) => {
-      const el = document.querySelector(sel) as HTMLElement | null;
-      return el ? getComputedStyle(el).display : 'missing';
-    };
-    const player = document.querySelector('.html5-video-player') ?? document.body;
-    const isVisible = (el: Element) => {
-      const s = getComputedStyle(el);
-      const r = el.getBoundingClientRect();
-      return s.display !== 'none' && s.visibility !== 'hidden' && parseFloat(s.opacity) > 0.01 && r.width > 40 && r.height > 30;
-    };
-    const visibleSuggestions = [...player.querySelectorAll('a.ytp-modern-videowall-still, a.ytp-videowall-still, a.ytp-ce-covering-overlay, a[href*="/watch"]')]
-      .filter((a) => player.contains(a) && isVisible(a)).length;
-    return {
-      tf: document.documentElement.className.match(/tf-[\w-]+/g) || [],
-      modernGrid: disp('.ytp-fullscreen-grid'),
-      videowall: disp('.ytp-endscreen-content'),
-      autonav: disp('.ytp-autonav-endscreen-countdown-overlay'),
-      visibleSuggestions,
-    };
-  });
-  console.log('LIVE result:', JSON.stringify(result));
+    // ── (A) 確定的な中核: 関連サイドバーの抑制 ──────────────────────────
+    // 既定 watchVisibleCount=0 では、おすすめパネルごと display:none にする。
+    const sidebar = page.locator('ytd-watch-next-secondary-results-renderer');
 
-  // 本質: プレイヤー上に「見えている」関連動画が 0 であること
-  expect(result.visibleSuggestions).toBe(0);
-  // 生成されていれば none であること（無い＝missing は許容）
-  for (const key of ['modernGrid', 'videowall', 'autonav'] as const) {
-    if (result[key] !== 'missing') {
-      expect(result[key]).toBe('none');
+    // まず「おすすめパネルが実在する」ことを確認（＝抑制対象がある。空振り防止）。
+    await expect(sidebar).toBeAttached({ timeout: 30_000 });
+
+    // 拡張 CSS が実 DOM にマッチして display:none を効かせていることを直接確認する。
+    // 「元々無い/空だから見えない」ではなく「拡張が能動的に隠している」ことの証明。
+    const sidebarDisplay = await sidebar.evaluate((el) => getComputedStyle(el).display);
+    expect(sidebarDisplay).toBe('none');
+
+    // 否定側: サイドバー内に「見えている」/watch リンクが 1 つも無いこと。
+    const visibleSidebarLinks = await sidebar.locator('a[href*="/watch"]:visible').count();
+    expect(visibleSidebarLinks).toBe(0);
+
+    // ── (B) ベストエフォート: エンドスクリーン抑制 ──────────────────────
+    // 実 YouTube の広告/自動再生に左右されるため、「実際に生成された時だけ」検証する。
+    // 生成に至らなければ (A) の確定的検証に委ね、ここは skip 相当で握りつぶす
+    //（空振り成功を作らないため、抑制の assert は生成が確認できた時だけ実行）。
+    // 注意: 空の器（.ytp-endscreen-content 等）は初期 DOM に存在しうるので、
+    // トリガーには「実際に生成されるおすすめタイル / 自動再生カウントダウン」を使う。
+    // これらは本編終了近くにのみ DOM へ追加されるため、attached = 本物の生成を意味する。
+    const endscreenSelector =
+      'a.ytp-modern-videowall-still, a.ytp-videowall-still, .ytp-autonav-endscreen-countdown-overlay';
+
+    // 終盤へシークして再生し、エンドスクリーンを誘発する（ミュート・autoplay 許可済み）。
+    await page.evaluate(async () => {
+      const v = document.querySelector('video') as HTMLVideoElement | null;
+      if (!v) {
+        return;
+      }
+      v.muted = true;
+      try {
+        if (v.duration && isFinite(v.duration)) {
+          v.currentTime = Math.max(0, v.duration - 1.5);
+        }
+        await v.play().catch(() => {});
+      } catch {
+        /* 再生できない環境でも (A) は成立しているので無視 */
+      }
+    });
+
+    const endscreenAppeared = await page
+      .locator(endscreenSelector)
+      .first()
+      .waitFor({ state: 'attached', timeout: 40_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!endscreenAppeared) {
+      const note = 'エンドスクリーン未生成（広告/自動再生の非決定性）。抑制検証はスキップし、中核(A)で担保。';
+      test.info().annotations.push({ type: 'skip-reason', description: note });
+      console.log('LIVE:', note);
+      return;
     }
-  }
-});
+
+    // 生成された → プレイヤー上に「見えている」おすすめが 0 であることを検証（否定側）。
+    // クラス名に依存せず、視認できる /watch リンクを直接数えるのが確実。
+    const visibleOnPlayer = await page.evaluate(() => {
+      const player = document.querySelector('.html5-video-player') ?? document.body;
+      const isVisible = (el: Element) => {
+        const s = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        return (
+          s.display !== 'none' &&
+          s.visibility !== 'hidden' &&
+          parseFloat(s.opacity) > 0.01 &&
+          r.width > 40 &&
+          r.height > 30
+        );
+      };
+      return [
+        ...player.querySelectorAll(
+          'a.ytp-modern-videowall-still, a.ytp-videowall-still, a.ytp-ce-covering-overlay, a[href*="/watch"]',
+        ),
+      ].filter((a) => player.contains(a) && isVisible(a)).length;
+    });
+    expect(visibleOnPlayer).toBe(0);
+  },
+);

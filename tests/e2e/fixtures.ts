@@ -23,6 +23,10 @@ export const test = base.extend<{ context: BrowserContext; extensionId: string }
         `--load-extension=${extensionPath}`,
         '--no-first-run',
         '--no-default-browser-check',
+        // ライブ E2E で video.play() をジェスチャ無しに許可（ミュート前提）。
+        // これが無いと実 YouTube で再生が始まらず、エンドスクリーンに到達しない。
+        '--autoplay-policy=no-user-gesture-required',
+        '--mute-audio',
       ],
     });
     await use(context);
