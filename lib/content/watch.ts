@@ -142,7 +142,11 @@ export function createWatchController(deps: WatchDeps): WatchController {
     clearDecorations();
 
     if (visibleCount > 0) {
-      const recommendations = Array.from(root.querySelectorAll(recSelector));
+      // おすすめ本体に加え、常に隠す横スクロール棚（Shorts/reel）も対象に含める。
+      // 含めないと forceHide 分岐に到達せず、棚が残ってしまう。
+      const recommendations = Array.from(
+        root.querySelectorAll(`${recSelector}, ${alwaysHideSelector}`),
+      );
       let shown = 0;
       for (const el of recommendations) {
         const forceHide = el.matches(alwaysHideSelector);

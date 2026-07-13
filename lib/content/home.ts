@@ -362,6 +362,12 @@ export function createHomeController(deps: HomeDeps): HomeController {
     if (!enabled()) {
       return;
     }
+    // ホーム以外（/watch や検索結果など）では何もしない。
+    // Alt+J はアクティブタブに届くため、ここを守らないとカードの無いページで
+    // スキップ回数が増え、閾値到達でタブが閉じられてしまう。
+    if (!isHomePage()) {
+      return;
+    }
     // スキップ上限に達していたら、それ以上は進めない（退出要求だけ担保する）
     if (atSkipLimit()) {
       maybeRequestExit();

@@ -182,6 +182,26 @@ describe('home controller', () => {
     home.destroy();
   });
 
+  it('ignores "next" on non-home pages (Alt+J on /watch must not count skips or close the tab)', () => {
+    setUrl('https://www.youtube.com/watch?v=abc');
+    document.body.innerHTML = '<div id="player"></div>';
+    let exitCount = 0;
+    const home = createHomeController({
+      getSettings: () => settings({ visibleCount: 1, skipCloseThreshold: 1 }),
+      onState: () => {},
+      requestExit: () => {
+        exitCount += 1;
+      },
+    });
+    home.apply('test');
+    home.next();
+    home.next();
+    home.next();
+    expect(exitCount).toBe(0);
+    expect(home.getSnapshot().remainingSkips).toBe(1); // skipCount 据え置き
+    home.destroy();
+  });
+
   it('does nothing to the DOM when disabled', () => {
     setUrl('https://www.youtube.com/');
     mountHome(3);
@@ -230,6 +250,31 @@ describe('watch controller (regression: nested recommendations)', () => {
     expect(document.documentElement.classList.contains('tf-watch')).toBe(true);
     expect(document.documentElement.classList.contains('tf-watch-hide-all')).toBe(true);
     expect(document.documentElement.classList.contains('tf-watch-ready')).toBe(true);
+    watch.destroy();
+  });
+
+  it('always hides reel/horizontal shelves even when watchVisibleCount > 0', () => {
+    setUrl('https://www.youtube.com/watch?v=abc');
+    document.body.innerHTML = `
+      <ytd-watch-flexy><div id="secondary"><div id="related">
+        <ytd-watch-next-secondary-results-renderer><div id="items">
+          <ytd-item-section-renderer><div id="contents">
+            <yt-lockup-view-model data-id="0"></yt-lockup-view-model>
+            <ytd-reel-shelf-renderer data-id="reel"></ytd-reel-shelf-renderer>
+            <yt-lockup-view-model data-id="1"></yt-lockup-view-model>
+          </div></ytd-item-section-renderer>
+        </div></ytd-watch-next-secondary-results-renderer>
+      </div></div></ytd-watch-flexy>
+    `;
+    const watch = createWatchController({ getSettings: () => settings({ watchVisibleCount: 5 }) });
+    watch.apply('test');
+
+    const reel = document.querySelector('ytd-reel-shelf-renderer')!;
+    expect(reel.classList.contains('tf-hidden')).toBe(true);
+    expect(reel.classList.contains('tf-visible')).toBe(false);
+    // 動画のおすすめ自体は表示される
+    const lockups = Array.from(document.querySelectorAll('yt-lockup-view-model'));
+    expect(lockups.every((l) => l.classList.contains('tf-visible'))).toBe(true);
     watch.destroy();
   });
 
