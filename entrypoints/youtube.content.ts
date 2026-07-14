@@ -13,6 +13,7 @@ import { createWatchController } from '../lib/content/watch';
 import { mountControls, type Controls } from '../lib/content/controls';
 import { createBlocker } from '../lib/content/blocker';
 import { createUsageTracker } from '../lib/usage';
+import { createDismissedStore } from '../lib/dismissed';
 
 export default defineContentScript({
   matches: ['*://www.youtube.com/*'],
@@ -30,6 +31,8 @@ export default defineContentScript({
 
     // 視聴秒数・「次へ」回数を保持する使用量トラッカー（storage.local, 日次リセット）
     const usage = createUsageTracker();
+    // 「次へ」でスキップ済みにした動画 ID（hideSkippedEnabled 用。storage.local, 日次リセット）
+    const dismissed = createDismissedStore(undefined, () => applyAll('dismissed-change'));
 
     const home = createHomeController({
       getSettings,
@@ -38,6 +41,11 @@ export default defineContentScript({
         usage.addSkip();
         void usage.flush();
         controls?.refresh();
+      },
+      isDismissed: (id) => dismissed.has(id),
+      dismiss: (ids) => {
+        dismissed.add(ids);
+        void dismissed.flush();
       },
     });
     const watch = createWatchController({ getSettings });
@@ -67,6 +75,8 @@ export default defineContentScript({
       controls?.refresh();
       blocker.refresh();
     });
+    // スキップ済み一覧を読み込んでから再適用（hideSkippedEnabled 時の初期表示に反映）
+    void dismissed.load().then(() => applyAll('dismissed-loaded'));
 
     // 初期化
     void readSettings().then((loaded) => {

@@ -90,6 +90,16 @@ html.tf-home.tf-hide-shorts ytd-rich-shelf-renderer[modernized-shelf-title*='Sho
   display: none !important;
 }
 
+/* 絞り込みで表示できるカードが 0 件のときの案内 */
+html.tf-home.tf-empty .tf-managed-root::after {
+  content: '条件に合う動画がありません（ポップアップでリセット／条件変更できます）';
+  display: block;
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--yt-spec-text-secondary, #aaa);
+  font-size: 1.4rem;
+}
+
 /* ===== WATCH ===== */
 
 /* 準備完了前: おすすめ全体を隠す */

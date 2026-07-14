@@ -43,6 +43,8 @@ describe('home controller', () => {
       getSettings: () => current,
       onState: () => {},
       onSkip: () => {},
+      isDismissed: () => false,
+      dismiss: () => {},
     });
 
     home.apply('test');
@@ -64,6 +66,8 @@ describe('home controller', () => {
       getSettings: () => settings({ visibleCount: 3 }),
       onState: () => {},
       onSkip: () => {},
+      isDismissed: () => false,
+      dismiss: () => {},
     });
     home.apply('test');
 
@@ -90,6 +94,8 @@ describe('home controller', () => {
       getSettings: () => settings({ visibleCount: 3 }),
       onState: () => {},
       onSkip: () => {},
+      isDismissed: () => false,
+      dismiss: () => {},
     });
     home.apply('test');
 
@@ -112,6 +118,8 @@ describe('home controller', () => {
       onSkip: () => {
         skips += 1;
       },
+      isDismissed: () => false,
+      dismiss: () => {},
     });
     home.apply('test');
     // 何度でも押せる（上限なし・タブは閉じない）
@@ -137,6 +145,8 @@ describe('home controller', () => {
       getSettings: () => settings({ visibleCount: 1 }),
       onState: () => {},
       onSkip: () => {},
+      isDismissed: () => false,
+      dismiss: () => {},
     });
     home.apply('test');
 
@@ -162,6 +172,8 @@ describe('home controller', () => {
       onSkip: () => {
         skips += 1;
       },
+      isDismissed: () => false,
+      dismiss: () => {},
     });
     home.apply('test');
     home.next();
@@ -177,11 +189,66 @@ describe('home controller', () => {
       getSettings: () => settings({ enabled: false }),
       onState: () => {},
       onSkip: () => {},
+      isDismissed: () => false,
+      dismiss: () => {},
     });
     home.apply('test');
     const tiles = Array.from(document.querySelectorAll('ytd-rich-item-renderer'));
     expect(tiles.some((t) => t.hasAttribute('data-tf-tile'))).toBe(false);
     expect(document.documentElement.classList.contains('tf-home')).toBe(false);
+    home.destroy();
+  });
+});
+
+function mountHomeWithDurations(durations: Array<string | null>): void {
+  setUrl('https://www.youtube.com/');
+  const cards = durations
+    .map((d, i) => {
+      const badge = d === null ? '' : `<ytd-thumbnail-overlay-time-status-renderer><span id="text">${d}</span></ytd-thumbnail-overlay-time-status-renderer>`;
+      return `<ytd-rich-item-renderer><a href="/watch?v=v${i}">${i}</a>${badge}</ytd-rich-item-renderer>`;
+    })
+    .join('');
+  document.body.innerHTML = `<ytd-rich-grid-renderer><div id="contents">${cards}</div></ytd-rich-grid-renderer>`;
+}
+
+function visibleHrefs(): string[] {
+  return Array.from(document.querySelectorAll('ytd-rich-item-renderer.tf-visible a[href]')).map(
+    (a) => a.getAttribute('href')!,
+  );
+}
+
+describe('home filtering', () => {
+  it('duration max=10 shows only videos <=10min, hides LIVE', () => {
+    mountHomeWithDurations(['3:20', '12:00', '45:00', null, '8:00']); // v0,v4 <=10min
+    const home = createHomeController({
+      getSettings: () =>
+        settings({ visibleCount: 6, durationFilterEnabled: true, durationMinMinutes: 0, durationMaxMinutes: 10 }),
+      onState: () => {},
+      onSkip: () => {},
+      isDismissed: () => false,
+      dismiss: () => {},
+    });
+    home.apply('test');
+    expect(visibleHrefs()).toEqual(['/watch?v=v0', '/watch?v=v4']);
+    home.destroy();
+  });
+
+  it('hideSkipped: next() dismisses the visible card and it stays hidden', () => {
+    mountHomeWithDurations(['3:20', '4:00', '5:00']);
+    const dismissedSet = new Set<string>();
+    const home = createHomeController({
+      getSettings: () => settings({ visibleCount: 1, hideSkippedEnabled: true }),
+      onState: () => {},
+      onSkip: () => {},
+      isDismissed: (id) => dismissedSet.has(id),
+      dismiss: (ids) => ids.forEach((id) => dismissedSet.add(id)),
+    });
+    home.apply('test');
+    expect(visibleHrefs()).toEqual(['/watch?v=v0']);
+    home.next(); // v0 をスキップ → dismiss
+    home.apply('after-skip');
+    expect(dismissedSet.has('v0')).toBe(true);
+    expect(visibleHrefs()).toEqual(['/watch?v=v1']);
     home.destroy();
   });
 });

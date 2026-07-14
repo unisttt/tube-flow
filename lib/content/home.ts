@@ -6,8 +6,9 @@ import type { Settings } from '../settings';
 import { clampCursor, computeVisibleBounds } from '../cursor';
 import { isHomePage } from '../page';
 import * as sel from '../adapters';
-import { queryFirst } from '../adapters';
+import { queryFirst, readTileDuration, readTileVideoId } from '../adapters';
 import { addToWatchLater, markNotInterested } from './actions';
+import { passesDurationFilter } from '../duration';
 
 const TILE_ATTR = 'data-tf-tile';
 const ROOT_MANAGED_CLASS = 'tf-managed-root';
@@ -35,11 +36,16 @@ interface HomeDeps {
   onState: () => void;
   /** 「次へ」を押した（＝スキップ 1 回）ときに呼ばれる。回数記録用 */
   onSkip: () => void;
+  /** 動画 ID がスキップ済みか */
+  isDismissed: (id: string) => boolean;
+  /** 動画 ID 群をスキップ済みに追加する（永続化は呼び出し側） */
+  dismiss: (ids: string[]) => void;
 }
 
 export function createHomeController(deps: HomeDeps): HomeController {
   let cursorIndex = 0;
   let tiles: Element[] = [];
+  let eligible: Element[] = [];
   let root: Element | null = null;
   let observer: MutationObserver | null = null;
   let applyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -235,12 +241,36 @@ export function createHomeController(deps: HomeDeps): HomeController {
     return Math.max(0, Number(deps.getSettings().visibleCount) || 0);
   }
 
+  /** 再生時間フィルタ・スキップ済みで候補を絞る。両方無効なら素通し。 */
+  function computeEligible(list: Element[]): Element[] {
+    const s = deps.getSettings();
+    const durOn = s.durationFilterEnabled && (s.durationMinMinutes > 0 || s.durationMaxMinutes > 0);
+    const skipOn = s.hideSkippedEnabled;
+    if (!durOn && !skipOn) {
+      return list;
+    }
+    return list.filter((tile) => {
+      if (durOn && !passesDurationFilter(readTileDuration(tile), s.durationMinMinutes, s.durationMaxMinutes)) {
+        return false;
+      }
+      if (skipOn) {
+        const id = readTileVideoId(tile);
+        if (id && deps.isDismissed(id)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
   function teardown(): void {
     clearTileDecorations(tiles);
     tiles = [];
+    eligible = [];
     root?.classList.remove(ROOT_MANAGED_CLASS);
     html().style.removeProperty('--tf-card-width');
     setFlag('tf-ready', false);
+    setFlag('tf-empty', false);
     toggleShorts(false);
   }
 
@@ -291,8 +321,10 @@ export function createHomeController(deps: HomeDeps): HomeController {
     }
     tiles = next;
 
+    eligible = computeEligible(tiles);
+
     const visibleCount = effectiveVisibleCount();
-    cursorIndex = clampCursor(cursorIndex, tiles.length, visibleCount);
+    cursorIndex = clampCursor(cursorIndex, eligible.length, visibleCount);
     const bounds = computeVisibleBounds(cursorIndex, visibleCount);
 
     // 管理下グリッドでは、タイル以外の直下要素（棚・セクション・continuation）も一括マスクする
@@ -300,19 +332,30 @@ export function createHomeController(deps: HomeDeps): HomeController {
     // カードの大きさ（幅）を CSS 変数で反映
     html().style.setProperty('--tf-card-width', `${Math.max(0, Number(settings.cardWidth) || 0)}px`);
 
-    tiles.forEach((tile, index) => {
+    const eligibleSet = new Set(eligible);
+    // 非適格タイルは常に隠す
+    for (const tile of tiles) {
       tile.setAttribute(TILE_ATTR, '1');
+      if (!eligibleSet.has(tile)) {
+        tile.classList.remove('tf-visible', CARD_CLASS);
+        tile.classList.add('tf-hidden');
+        removeCardActions(tile);
+      }
+    }
+    // 適格タイルはカーソル窓のみ表示
+    eligible.forEach((tile, index) => {
       const shouldShow = visibleCount > 0 && index >= bounds.start && index < bounds.end;
       tile.classList.toggle('tf-visible', shouldShow);
       tile.classList.toggle('tf-hidden', !shouldShow);
       tile.classList.toggle(CARD_CLASS, shouldShow);
-      // 表示中カードにだけ個別ボタンを付ける
       if (shouldShow) {
         ensureCardActions(tile);
       } else {
         removeCardActions(tile);
       }
     });
+
+    setFlag('tf-empty', eligible.length === 0);
 
     toggleShorts(Boolean(settings.hideShorts));
     setFlag('tf-ready', true);
@@ -321,11 +364,11 @@ export function createHomeController(deps: HomeDeps): HomeController {
   }
 
   function getCurrentTile(): Element | null {
-    if (!enabled() || !tiles.length) {
+    if (!enabled() || !eligible.length) {
       return null;
     }
-    const index = clampCursor(cursorIndex, tiles.length, effectiveVisibleCount());
-    return tiles[index] ?? null;
+    const index = clampCursor(cursorIndex, eligible.length, effectiveVisibleCount());
+    return eligible[index] ?? null;
   }
 
   /**
@@ -336,9 +379,25 @@ export function createHomeController(deps: HomeDeps): HomeController {
     if (!enabled() || !isHomePage()) {
       return;
     }
-    const step = Math.max(1, effectiveVisibleCount());
-    cursorIndex += step;
-    scheduleApply('cursor-change');
+    const s = deps.getSettings();
+    if (s.hideSkippedEnabled) {
+      // 表示中の適格カードをスキップ済みにして隠す。カーソルは据え置き。
+      const vc = effectiveVisibleCount();
+      const start = clampCursor(cursorIndex, eligible.length, vc);
+      const bounds = computeVisibleBounds(start, vc);
+      const ids: string[] = [];
+      for (let i = bounds.start; i < bounds.end && i < eligible.length; i++) {
+        const id = readTileVideoId(eligible[i]!);
+        if (id) {
+          ids.push(id);
+        }
+      }
+      deps.dismiss(ids);
+      scheduleApply('skip-hide');
+    } else {
+      cursorIndex += Math.max(1, effectiveVisibleCount());
+      scheduleApply('cursor-change');
+    }
     deps.onSkip();
     emit();
   }
