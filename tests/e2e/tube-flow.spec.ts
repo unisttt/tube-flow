@@ -148,6 +148,72 @@ test.describe('Tube Flow (built extension)', () => {
 });
 
 test.describe('Tube Flow settings propagation', () => {
+  const visibleVideoIds = (page: import('@playwright/test').Page) =>
+    page.$$eval('ytd-rich-item-renderer.tf-visible a[href^="/watch"]', (els) =>
+      els.map((e) => new URL(e.getAttribute('href')!, location.origin).searchParams.get('v')),
+    );
+
+  test('duration filter: max=10 shows only <=10min videos, hides LIVE', async ({
+    context,
+    extensionId,
+  }) => {
+    await seedStorage(context, extensionId, {
+      visibleCount: 6,
+      durationFilterEnabled: true,
+      durationMinMinutes: 0,
+      durationMaxMinutes: 10,
+    });
+    await stubYouTube(context);
+    const page = await context.newPage();
+    await page.goto('https://www.youtube.com/');
+    await page.waitForSelector('html.tf-home.tf-ready');
+    expect(await visibleVideoIds(page)).toEqual(['0', '4']); // 3:20 と 8:00 のみ
+  });
+
+  test('duration filter: min=20 shows only >=20min videos', async ({ context, extensionId }) => {
+    await seedStorage(context, extensionId, {
+      visibleCount: 6,
+      durationFilterEnabled: true,
+      durationMinMinutes: 20,
+      durationMaxMinutes: 0,
+    });
+    await stubYouTube(context);
+    const page = await context.newPage();
+    await page.goto('https://www.youtube.com/');
+    await page.waitForSelector('html.tf-home.tf-ready');
+    expect(await visibleVideoIds(page)).toEqual(['2']); // 45:00 のみ
+  });
+
+  test('hideSkipped: 次へ dismisses a video and it stays hidden after reload; reset restores', async ({
+    context,
+    extensionId,
+  }) => {
+    await seedStorage(context, extensionId, { visibleCount: 1, hideSkippedEnabled: true });
+    await stubYouTube(context);
+    const page = await context.newPage();
+    await page.goto('https://www.youtube.com/');
+    await page.waitForSelector('html.tf-home.tf-ready');
+    expect(await visibleVideoIds(page)).toEqual(['0']);
+
+    // 次へ → v0 をスキップ → v1 が出る
+    await page.locator('.tf-controls button[data-action="next"]').click();
+    await expect
+      .poll(async () => (await visibleVideoIds(page))[0])
+      .toBe('1');
+
+    // リロードしても v0 は戻らない
+    await page.reload();
+    await page.waitForSelector('html.tf-home.tf-ready');
+    expect((await visibleVideoIds(page))[0]).toBe('1');
+
+    // ポップアップでリセット → v0 が戻る
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await popup.locator('#reset-skipped').click();
+    await popup.close();
+    await expect.poll(async () => (await visibleVideoIds(page))[0]).toBe('0');
+  });
+
   test('home: visibleCount = 3 shows 3 cards with per-card buttons; "次へ" pages by 3', async ({
     context,
     extensionId,
