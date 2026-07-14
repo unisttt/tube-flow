@@ -54,6 +54,32 @@
           </label>
           <small>ホームに表示される Shorts やリール棚を隠します。</small>
         </div>
+        <div class="field">
+          <label for="durationFilterEnabled">
+            <input type="checkbox" id="durationFilterEnabled" name="durationFilterEnabled" />
+            再生時間でフィルタする
+          </label>
+          <small>指定した再生時間の動画だけをホームに表示します（0 は境界なし・時間不明の LIVE 等は除外）。</small>
+        </div>
+        <div class="field">
+          <label for="durationMinMinutes">
+            最短（分）
+            <input type="number" id="durationMinMinutes" name="durationMinMinutes" min="0" max="600" />
+          </label>
+        </div>
+        <div class="field">
+          <label for="durationMaxMinutes">
+            最長（分）
+            <input type="number" id="durationMaxMinutes" name="durationMaxMinutes" min="0" max="600" />
+          </label>
+        </div>
+        <div class="field">
+          <label for="hideSkippedEnabled">
+            <input type="checkbox" id="hideSkippedEnabled" name="hideSkippedEnabled" />
+            スキップした動画をリセットまで隠す
+          </label>
+          <small>「次へ」でスキップした動画を再表示しません。毎日 0 時に自動リセット。手動リセットはポップアップから。</small>
+        </div>
       </fieldset>
 
       <fieldset>

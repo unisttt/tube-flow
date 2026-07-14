@@ -70,6 +70,10 @@ function renderSummary(settings: Settings): void {
     ['Shorts 非表示', settings.hideShorts ? '有効' : '無効'],
     ['時間帯ブロック', schedule],
     ['1日の視聴上限', dailyLimit],
+    ['再生時間フィルタ', settings.durationFilterEnabled
+      ? `${settings.durationMinMinutes || 0}〜${settings.durationMaxMinutes || '∞'}分`
+      : '無効'],
+    ['スキップ済みを隠す', settings.hideSkippedEnabled ? '有効' : '無効'],
   ];
   summary.innerHTML = entries
     .map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`)
@@ -82,6 +86,10 @@ function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('cardWidth').value = String(settings.cardWidth);
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
   field<HTMLInputElement>('hideShorts').checked = settings.hideShorts;
+  field<HTMLInputElement>('durationFilterEnabled').checked = settings.durationFilterEnabled;
+  field<HTMLInputElement>('durationMinMinutes').value = String(settings.durationMinMinutes);
+  field<HTMLInputElement>('durationMaxMinutes').value = String(settings.durationMaxMinutes);
+  field<HTMLInputElement>('hideSkippedEnabled').checked = settings.hideSkippedEnabled;
   field<HTMLInputElement>('scheduleBlockEnabled').checked = settings.scheduleBlockEnabled;
   field<HTMLInputElement>('dailyLimitEnabled').checked = settings.dailyLimitEnabled;
   field<HTMLInputElement>('dailyLimitMinutes').value = String(settings.dailyLimitMinutes);
@@ -137,6 +145,10 @@ async function handleSave(event: SubmitEvent): Promise<void> {
     cardWidth: Number(field<HTMLInputElement>('cardWidth').value),
     watchVisibleCount: Number(field<HTMLInputElement>('watchVisibleCount').value),
     hideShorts: field<HTMLInputElement>('hideShorts').checked,
+    durationFilterEnabled: field<HTMLInputElement>('durationFilterEnabled').checked,
+    durationMinMinutes: Number(field<HTMLInputElement>('durationMinMinutes').value),
+    durationMaxMinutes: Number(field<HTMLInputElement>('durationMaxMinutes').value),
+    hideSkippedEnabled: field<HTMLInputElement>('hideSkippedEnabled').checked,
     scheduleBlockEnabled: field<HTMLInputElement>('scheduleBlockEnabled').checked,
     blockWindows: sanitizeWindows(windows),
     dailyLimitEnabled: field<HTMLInputElement>('dailyLimitEnabled').checked,
