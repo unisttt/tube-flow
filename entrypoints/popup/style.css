@@ -146,3 +146,11 @@ hr.sep {
 .tf-skipchart .tf-bar-today {
   fill: #e5484d;
 }
+#reset-skipped {
+  width: 100%;
+  margin-top: 4px;
+}
+#reset-skipped:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

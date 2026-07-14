@@ -47,6 +47,36 @@
           </span>
         </label>
 
+        <label class="toggle" for="durationFilterEnabled">
+          <input type="checkbox" id="durationFilterEnabled" name="durationFilterEnabled" />
+          <span>再生時間でフィルタ</span>
+        </label>
+
+        <label class="field" for="durationMinMinutes">
+          <span class="label">最短（分・0で無し）</span>
+          <span class="controls">
+            <button type="button" class="step" data-target="durationMinMinutes" data-step="-5" aria-label="最短を減らす">-</button>
+            <input type="number" id="durationMinMinutes" name="durationMinMinutes" min="0" max="600" step="5" />
+            <button type="button" class="step" data-target="durationMinMinutes" data-step="5" aria-label="最短を増やす">+</button>
+          </span>
+        </label>
+
+        <label class="field" for="durationMaxMinutes">
+          <span class="label">最長（分・0で無し）</span>
+          <span class="controls">
+            <button type="button" class="step" data-target="durationMaxMinutes" data-step="-5" aria-label="最長を減らす">-</button>
+            <input type="number" id="durationMaxMinutes" name="durationMaxMinutes" min="0" max="600" step="5" />
+            <button type="button" class="step" data-target="durationMaxMinutes" data-step="5" aria-label="最長を増やす">+</button>
+          </span>
+        </label>
+
+        <label class="toggle" for="hideSkippedEnabled">
+          <input type="checkbox" id="hideSkippedEnabled" name="hideSkippedEnabled" />
+          <span>スキップした動画を隠す</span>
+        </label>
+
+        <button type="button" class="secondary" id="reset-skipped">スキップ済みを表示に戻す</button>
+
         <hr class="sep" />
 
         <label class="toggle" for="scheduleBlockEnabled">

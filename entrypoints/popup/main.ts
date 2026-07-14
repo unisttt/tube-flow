@@ -6,6 +6,7 @@ import {
   type Settings,
 } from '../../lib/settings';
 import { notifyContentScripts } from '../../lib/messaging';
+import { DISMISSED_KEY } from '../../lib/dismissed';
 import {
   USAGE_KEY,
   dayKey,
@@ -22,11 +23,12 @@ const stepButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.st
 const openOptionsButton = document.getElementById('open-options') as HTMLButtonElement;
 const restoreDefaultsButton = document.getElementById('restore-defaults') as HTMLButtonElement;
 const usageNode = document.getElementById('usage') as HTMLElement;
+const resetSkippedButton = document.getElementById('reset-skipped') as HTMLButtonElement;
 
 // LIMITS のうちポップアップにステッパーがある数値フィールドだけを対象にする
-const NUMERIC_FIELDS = ['visibleCount', 'cardWidth', 'watchVisibleCount'] as const;
+const NUMERIC_FIELDS = ['visibleCount', 'cardWidth', 'watchVisibleCount', 'durationMinMinutes', 'durationMaxMinutes'] as const;
 type NumericField = (typeof NUMERIC_FIELDS)[number];
-const BOOLEAN_FIELDS = ['enabled', 'hideShorts', 'scheduleBlockEnabled', 'dailyLimitEnabled'] as const;
+const BOOLEAN_FIELDS = ['enabled', 'hideShorts', 'scheduleBlockEnabled', 'dailyLimitEnabled', 'durationFilterEnabled', 'hideSkippedEnabled'] as const;
 
 function field<T extends HTMLElement = HTMLInputElement>(name: string): T {
   return form.elements.namedItem(name) as T;
@@ -55,6 +57,10 @@ function applySettingsToForm(settings: Settings): void {
   field<HTMLInputElement>('watchVisibleCount').value = String(settings.watchVisibleCount);
   field<HTMLInputElement>('scheduleBlockEnabled').checked = settings.scheduleBlockEnabled;
   field<HTMLInputElement>('dailyLimitEnabled').checked = settings.dailyLimitEnabled;
+  field<HTMLInputElement>('durationFilterEnabled').checked = settings.durationFilterEnabled;
+  field<HTMLInputElement>('durationMinMinutes').value = String(settings.durationMinMinutes);
+  field<HTMLInputElement>('durationMaxMinutes').value = String(settings.durationMaxMinutes);
+  field<HTMLInputElement>('hideSkippedEnabled').checked = settings.hideSkippedEnabled;
   updateStepperDisabled();
 }
 
@@ -157,6 +163,31 @@ async function handleRestoreDefaults(): Promise<void> {
   }
 }
 
+async function renderSkippedCount(): Promise<void> {
+  try {
+    const today = dayKey(new Date());
+    const rec = (await chrome.storage.local.get(DISMISSED_KEY))[DISMISSED_KEY] as
+      | { date?: string; ids?: string[] }
+      | undefined;
+    const count = rec && rec.date === today && Array.isArray(rec.ids) ? rec.ids.length : 0;
+    resetSkippedButton.textContent = `スキップ済みを表示に戻す（${count}件）`;
+    resetSkippedButton.disabled = count === 0;
+  } catch {
+    resetSkippedButton.textContent = 'スキップ済みを表示に戻す';
+  }
+}
+
+async function handleResetSkipped(): Promise<void> {
+  try {
+    const today = dayKey(new Date());
+    await chrome.storage.local.set({ [DISMISSED_KEY]: { date: today, ids: [] } });
+    await renderSkippedCount();
+    showStatus('スキップ済みをリセットしました');
+  } catch {
+    showStatus('リセットに失敗しました', true);
+  }
+}
+
 function handleOpenOptions(): void {
   if (chrome.runtime.openOptionsPage) {
     chrome.runtime.openOptionsPage();
@@ -179,6 +210,8 @@ async function init(): Promise<void> {
   stepButtons.forEach((button) => button.addEventListener('click', handleStepClick));
   restoreDefaultsButton.addEventListener('click', () => void handleRestoreDefaults());
   openOptionsButton.addEventListener('click', handleOpenOptions);
+  resetSkippedButton.addEventListener('click', () => void handleResetSkipped());
+  await renderSkippedCount();
 }
 
 void init();
