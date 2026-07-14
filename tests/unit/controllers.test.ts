@@ -251,6 +251,41 @@ describe('home filtering', () => {
     expect(visibleHrefs()).toEqual(['/watch?v=v1']);
     home.destroy();
   });
+
+  it('hideSkipped: rapid double next() skips two distinct videos (no stale window)', () => {
+    mountHomeWithDurations(['3:20', '4:00', '5:00']);
+    const dismissedSet = new Set<string>();
+    let skips = 0;
+    const home = createHomeController({
+      getSettings: () => settings({ visibleCount: 1, hideSkippedEnabled: true }),
+      onState: () => {},
+      onSkip: () => { skips += 1; },
+      isDismissed: (id) => dismissedSet.has(id),
+      dismiss: (ids) => ids.forEach((id) => dismissedSet.add(id)),
+    });
+    home.apply('test');
+    home.next(); // skips v0
+    home.next(); // must skip v1, not re-read stale v0
+    expect([...dismissedSet].sort()).toEqual(['v0', 'v1']);
+    expect(skips).toBe(2);
+    home.destroy();
+  });
+
+  it('duration filter and hideSkipped compose (both predicates applied)', () => {
+    mountHomeWithDurations(['3:20', '8:00', '45:00']); // v0,v1 <=10min; v2 excluded by duration
+    const dismissedSet = new Set<string>(['v0']); // v0 excluded by skip
+    const home = createHomeController({
+      getSettings: () =>
+        settings({ visibleCount: 6, durationFilterEnabled: true, durationMinMinutes: 0, durationMaxMinutes: 10, hideSkippedEnabled: true }),
+      onState: () => {},
+      onSkip: () => {},
+      isDismissed: (id) => dismissedSet.has(id),
+      dismiss: () => {},
+    });
+    home.apply('test');
+    expect(visibleHrefs()).toEqual(['/watch?v=v1']); // only v1 survives both filters
+    home.destroy();
+  });
 });
 
 describe('watch controller (regression: nested recommendations)', () => {

@@ -72,7 +72,10 @@ export function createDismissedStore(
     const today = dayKey(now());
     const incoming = normalizeDismissed(changes[DISMISSED_KEY].newValue, today);
     if (incoming.date !== current.date || incoming.ids.length < set.size) {
-      // 別日、または縮んだ（＝他所でリセット/削除）→ そのまま採用
+      // 別日、または縮んだ（＝他所でリセット/削除）→ そのまま採用。
+      // 同日内で件数が減るのは reset() か popup のリセット書き込みだけが起点であり、
+      // ローカルで溜まっていた未反映のスキップを含めて「リセット優先」で破棄するのが意図した挙動。
+      // union（skip-wins）にしてしまうと、リセット直後に古いスキップが復活してしまうため変更しないこと。
       current = incoming;
       set = new Set(incoming.ids);
     } else {

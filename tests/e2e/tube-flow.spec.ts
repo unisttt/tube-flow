@@ -210,6 +210,7 @@ test.describe('Tube Flow settings propagation', () => {
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     await popup.locator('#reset-skipped').click();
+    await expect(popup.locator('#reset-skipped')).toBeDisabled();
     await popup.close();
     await expect.poll(async () => (await visibleVideoIds(page))[0]).toBe('0');
   });

@@ -393,6 +393,21 @@ export function createHomeController(deps: HomeDeps): HomeController {
         }
       }
       deps.dismiss(ids);
+      if (ids.length > 0) {
+        // apply() は 160ms デバウンスのため、連打時は eligible が古いまま次の next() が読む。
+        // 即座に間引いて隠しておくことで、直後の next() が最新のウィンドウを見られるようにする。
+        const skipped = new Set(ids);
+        eligible = eligible.filter((tile) => {
+          const id = readTileVideoId(tile);
+          if (id && skipped.has(id)) {
+            tile.classList.remove('tf-visible', CARD_CLASS);
+            tile.classList.add('tf-hidden');
+            removeCardActions(tile);
+            return false;
+          }
+          return true;
+        });
+      }
       scheduleApply('skip-hide');
     } else {
       cursorIndex += Math.max(1, effectiveVisibleCount());
