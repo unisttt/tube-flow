@@ -70,16 +70,8 @@ export default defineContentScript({
       });
     }
 
-    // 使用量を読み込んで UI に反映
-    void usage.load().then(() => {
-      controls?.refresh();
-      blocker.refresh();
-    });
-    // スキップ済み一覧を読み込んでから再適用（hideSkippedEnabled 時の初期表示に反映）
-    void dismissed.load().then(() => applyAll('dismissed-loaded'));
-
-    // 初期化
-    void readSettings().then((loaded) => {
+    // 設定・使用量・スキップ済み一覧を揃えてから初回描画（hideSkippedEnabled 時の一瞬の再表示を防ぐ）
+    void Promise.all([readSettings(), usage.load(), dismissed.load()]).then(([loaded]) => {
       settings = loaded;
       applyPrehideFlags(loaded.enabled);
       ensureControls();
