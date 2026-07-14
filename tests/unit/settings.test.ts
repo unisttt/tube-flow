@@ -56,6 +56,27 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ dailyLimitMinutes: 1 as never }).dailyLimitMinutes).toBe(5);
     expect(sanitizeSettings({ scheduleBlockEnabled: 1 as never }).scheduleBlockEnabled).toBe(true);
   });
+
+  it('adds and clamps duration filter + hideSkipped fields', () => {
+    const result = sanitizeSettings({
+      durationFilterEnabled: 'yes',
+      durationMinMinutes: 5,
+      durationMaxMinutes: 9999,
+      hideSkippedEnabled: 1,
+    });
+    expect(result.durationFilterEnabled).toBe(true);
+    expect(result.durationMinMinutes).toBe(5);
+    expect(result.durationMaxMinutes).toBe(600); // max にクランプ
+    expect(result.hideSkippedEnabled).toBe(true);
+  });
+
+  it('defaults new fields to OFF/0', () => {
+    const result = sanitizeSettings({});
+    expect(result.durationFilterEnabled).toBe(false);
+    expect(result.durationMinMinutes).toBe(0);
+    expect(result.durationMaxMinutes).toBe(0);
+    expect(result.hideSkippedEnabled).toBe(false);
+  });
 });
 
 describe('normalizeHHMM', () => {

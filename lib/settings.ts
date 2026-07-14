@@ -30,6 +30,16 @@ export interface Settings {
   dailyLimitEnabled: boolean;
   /** 1 日の視聴時間上限（分。動画再生中の時間で計測） */
   dailyLimitMinutes: number;
+
+  // ── ホームの絞り込み ──
+  /** 再生時間フィルタを有効にするか */
+  durationFilterEnabled: boolean;
+  /** 再生時間の下限（分。0 で下限なし） */
+  durationMinMinutes: number;
+  /** 再生時間の上限（分。0 で上限なし。以内=inclusive） */
+  durationMaxMinutes: number;
+  /** 一度「次へ」でスキップした動画をリセットまで隠すか */
+  hideSkippedEnabled: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -42,6 +52,10 @@ export const DEFAULTS: Settings = {
   blockWindows: [],
   dailyLimitEnabled: false,
   dailyLimitMinutes: 60,
+  durationFilterEnabled: false,
+  durationMinMinutes: 0,
+  durationMaxMinutes: 0,
+  hideSkippedEnabled: false,
 };
 
 export const LIMITS = {
@@ -49,6 +63,8 @@ export const LIMITS = {
   watchVisibleCount: { min: 0, max: 20 },
   cardWidth: { min: 360, max: 1280 },
   dailyLimitMinutes: { min: 5, max: 1440 },
+  durationMinMinutes: { min: 0, max: 600 },
+  durationMaxMinutes: { min: 0, max: 600 },
 } as const;
 
 const HHMM = /^(\d{1,2}):(\d{2})$/;
@@ -132,6 +148,20 @@ export function sanitizeSettings(raw: Partial<Record<keyof Settings, unknown>> =
       LIMITS.dailyLimitMinutes.max,
       DEFAULTS.dailyLimitMinutes,
     ),
+    durationFilterEnabled: Boolean(raw.durationFilterEnabled ?? DEFAULTS.durationFilterEnabled),
+    durationMinMinutes: clampNumber(
+      raw.durationMinMinutes,
+      LIMITS.durationMinMinutes.min,
+      LIMITS.durationMinMinutes.max,
+      DEFAULTS.durationMinMinutes,
+    ),
+    durationMaxMinutes: clampNumber(
+      raw.durationMaxMinutes,
+      LIMITS.durationMaxMinutes.min,
+      LIMITS.durationMaxMinutes.max,
+      DEFAULTS.durationMaxMinutes,
+    ),
+    hideSkippedEnabled: Boolean(raw.hideSkippedEnabled ?? DEFAULTS.hideSkippedEnabled),
   };
 }
 
