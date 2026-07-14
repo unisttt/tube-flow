@@ -8,6 +8,9 @@
  *    → 直下前提のセレクタをやめ、コンテナ配下を deep に走査する。
  */
 
+import { parseDurationText } from './duration';
+import { parseVideoId } from './video-id';
+
 /** 複数候補セレクタから最初にマッチした要素を返す */
 export function queryFirst<T extends Element = Element>(
   candidates: readonly string[],
@@ -44,6 +47,16 @@ export const home = {
     'ytd-rich-shelf-renderer[is-shorts]',
     'ytd-rich-shelf-renderer[modernized-shelf-title*="Shorts" i]',
   ],
+  /** サムネイルの再生時間バッジ（新旧レイアウト併記。実 DOM で要確認） */
+  durationBadge: [
+    'ytd-thumbnail-overlay-time-status-renderer #text',
+    'ytd-thumbnail-overlay-time-status-renderer',
+    'thumbnail-overlay-badge-view-model .badge-shape-wiz__text',
+    'badge-shape .badge-shape-wiz__text',
+    '.ytThumbnailOverlayBadgeViewModelHost .badge-shape-wiz__text',
+  ],
+  /** カードの動画リンク（先頭一致を採用） */
+  videoLink: ['a#thumbnail[href]', 'a[href*="watch?v="]', 'a[href^="/watch"]', 'a[href^="/shorts/"]'],
 } as const;
 
 export const watch = {
@@ -120,3 +133,29 @@ export const menuItems: readonly string[] = [
 export const WATCH_LATER_PATTERNS = [/watch later/i, /後で見る/, /save to watch later/i];
 // 「チャンネルをおすすめに表示しない」を誤爆しないよう「興味なし/興味がない」に限定
 export const NOT_INTERESTED_PATTERNS = [/not interested/i, /興味がない/, /興味なし/];
+
+/** タイル内の時間バッジをパースして秒で返す。無ければ null（＝時間不明）。 */
+export function readTileDuration(tile: Element): number | null {
+  for (const selector of home.durationBadge) {
+    for (const el of Array.from(tile.querySelectorAll(selector))) {
+      const seconds = parseDurationText(el.textContent);
+      if (seconds !== null) {
+        return seconds;
+      }
+    }
+  }
+  return null;
+}
+
+/** タイルの先頭 watch リンクから動画 ID を返す。無ければ null。 */
+export function readTileVideoId(tile: Element): string | null {
+  for (const selector of home.videoLink) {
+    for (const el of Array.from(tile.querySelectorAll(selector))) {
+      const id = parseVideoId(el.getAttribute('href'));
+      if (id) {
+        return id;
+      }
+    }
+  }
+  return null;
+}
