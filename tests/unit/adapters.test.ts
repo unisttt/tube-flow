@@ -23,6 +23,16 @@ describe('readTileDuration', () => {
       </ytd-rich-item-renderer>`);
     expect(readTileDuration(tile)).toBeNull();
   });
+  // 2026 現行の実 DOM 構造（yt-thumbnail-badge-view-model > badge-shape > .ytBadgeShapeText）。
+  // 旧セレクタしか無かったため実 YouTube で時間が取れず全カード除外になった回帰の防止。
+  it('reads the 2026 badge-shape structure (.ytBadgeShapeText)', () => {
+    const tile = tileHtml(`
+      <ytd-rich-item-renderer>
+        <a href="/watch?v=x"></a>
+        <yt-thumbnail-badge-view-model class="ytThumbnailBadgeViewModelHost"><badge-shape class="ytBadgeShapeHost"><div class="ytBadgeShapeText">22:20</div></badge-shape></yt-thumbnail-badge-view-model>
+      </ytd-rich-item-renderer>`);
+    expect(readTileDuration(tile)).toBe(1340);
+  });
 });
 
 describe('readTileVideoId', () => {

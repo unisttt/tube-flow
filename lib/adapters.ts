@@ -49,6 +49,12 @@ export const home = {
   ],
   /** サムネイルの再生時間バッジ（新旧レイアウト併記。実 DOM で要確認） */
   durationBadge: [
+    // 2026 現行 DOM: yt-thumbnail-badge-view-model > badge-shape > div.ytBadgeShapeText
+    // （時間・4K・ライブ等が同クラス。readTileDuration が時間形式のものだけ採用する）
+    'yt-thumbnail-badge-view-model .ytBadgeShapeText',
+    'badge-shape .ytBadgeShapeText',
+    '.ytBadgeShapeText',
+    // 旧レイアウトのフォールバック
     'ytd-thumbnail-overlay-time-status-renderer #text',
     'ytd-thumbnail-overlay-time-status-renderer',
     'thumbnail-overlay-badge-view-model .badge-shape-wiz__text',
