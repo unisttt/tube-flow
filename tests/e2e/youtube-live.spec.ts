@@ -15,6 +15,7 @@
  */
 import { test, expect } from './fixtures';
 import type { Page } from '@playwright/test';
+import { home } from '../../lib/adapters';
 
 const SHORT_VIDEO = 'https://www.youtube.com/watch?v=jNQXAC9IVRw'; // Me at the zoo (19s)
 
@@ -139,3 +140,68 @@ test(
     expect(visibleOnPlayer).toBe(0);
   },
 );
+
+/**
+ * セレクタ腐食ガード: 実 YouTube で、adapters の `home.durationBadge` 候補が
+ * 実際に再生時間へ当たることを検証する。スタブ・フィクスチャは我々が作った DOM を
+ * 映すだけなので、実サイトの DOM 変更（例: 時間バッジが .ytBadgeShapeText へ移行）で
+ * セレクタが全滅しても気づけない。この @live テストが、その「フィルタが全カードを
+ * 空にする」クラスの回帰を実サイトで捕まえる唯一の砦。
+ *
+ * ホームのフィードは未ログインだと描画されないため、未ログインでも確実に動画カードと
+ * 時間バッジが出る「検索結果」ページで検証する（バッジ要素の構造はサイト共通）。
+ */
+test('LIVE: 実 DOM で再生時間バッジのセレクタが当たる（durationBadge のセレクタ腐食ガード）', {
+  tag: '@live',
+}, async ({ context }) => {
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('https://www.youtube.com/results?search_query=lofi', {
+    waitUntil: 'domcontentloaded',
+  });
+  await dismissConsent(page);
+
+  // 動画カード（と時間バッジ）が生成されるまで待つ
+  await page.waitForSelector('ytd-video-renderer, ytd-rich-item-renderer', { timeout: 30_000 });
+  await page
+    .waitForFunction(() => document.querySelectorAll('.ytBadgeShapeText').length > 0, {
+      timeout: 30_000,
+    })
+    .catch(() => {});
+
+  // adapters の実セレクタ列を渡し、各動画カードで readTileDuration 相当を実行して
+  // 「時間が取れたカード数」を数える。1 件も取れなければセレクタが実 DOM とズレている。
+  const result = await page.evaluate((durationBadge: readonly string[]) => {
+    const TIME_RE = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+    const parse = (t: string | null): number | null => {
+      if (typeof t !== 'string') return null;
+      const m = TIME_RE.exec(t.trim());
+      if (!m) return null;
+      const a = Number(m[1]);
+      const b = Number(m[2]);
+      const c = m[3] !== undefined ? Number(m[3]) : null;
+      if (b > 59 || (c !== null && c > 59)) return null;
+      return c === null ? a * 60 + b : a * 3600 + b * 60 + c;
+    };
+    const readDur = (tile: Element): number | null => {
+      for (const sel of durationBadge) {
+        for (const el of Array.from(tile.querySelectorAll(sel))) {
+          const s = parse(el.textContent);
+          if (s !== null) return s;
+        }
+      }
+      return null;
+    };
+    const cards = Array.from(
+      document.querySelectorAll('ytd-video-renderer, ytd-rich-item-renderer'),
+    );
+    const withDuration = cards.map(readDur).filter((d) => d !== null).length;
+    return { cards: cards.length, withDuration };
+  }, home.durationBadge);
+
+  console.log('LIVE durationBadge:', JSON.stringify(result));
+  // 通常動画には必ず時間バッジがある。1 件でも取れれば「当たっている」ことの証明。
+  // 0 なら home.durationBadge が実 DOM とズレている（＝フィルタが全カードを空にする回帰）。
+  expect(result.cards).toBeGreaterThan(0);
+  expect(result.withDuration).toBeGreaterThan(0);
+});
